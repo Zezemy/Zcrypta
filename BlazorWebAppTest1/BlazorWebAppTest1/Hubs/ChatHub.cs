@@ -1,6 +1,6 @@
 ﻿using BlazorWebAppTest1.Context;
 using Microsoft.AspNetCore.SignalR;
-using Zcda.Entities.Dto;
+using Zcda.Entities.Dtos;
 
 namespace BlazorWebAppTest1.Hubs
 {

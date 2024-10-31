@@ -1,4 +1,4 @@
-﻿namespace Zcda.Entities.Dto
+﻿namespace Zcda.Entities.Dtos
 {
     public class ChatMessage
     {

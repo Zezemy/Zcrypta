@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Zcda.Entities.Dto
+namespace Zcda.Entities.Dtos
 {
     public class SearchResult
     {

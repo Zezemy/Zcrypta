@@ -1,4 +1,4 @@
-﻿using Zcda.Entities.Dto;
+﻿using Zcda.Entities.Dtos;
 
 namespace Zcda.Entities.Interfaces
 {

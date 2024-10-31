@@ -1,6 +1,6 @@
 ﻿using System.Collections.Concurrent;
 
-namespace BlazorWebAppTest1.Manager
+namespace BlazorWebAppTest1.Managers
 {
     internal sealed class ActiveTickerManager
     {

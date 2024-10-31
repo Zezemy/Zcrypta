@@ -6,9 +6,9 @@ using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Binance.Net;
 using Binance.Net.Interfaces.Clients;
-using BlazorWebAppTest1.Manager;
 using BlazorWebAppTest1.BackgroundServices;
-using Zcda.Entities.BackgroundService;
+using BlazorWebAppTest1.Managers;
+using Zcda.Entities.BackgroundServices;
 
 var builder = WebApplication.CreateBuilder(args);
 

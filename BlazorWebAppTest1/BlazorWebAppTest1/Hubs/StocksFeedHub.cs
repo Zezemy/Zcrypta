@@ -1,4 +1,4 @@
-﻿using BlazorWebAppTest1.Manager;
+﻿using BlazorWebAppTest1.Managers;
 using Microsoft.AspNetCore.SignalR;
 using System.Text.RegularExpressions;
 using Zcda.Entities.Interfaces;

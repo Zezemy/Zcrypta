@@ -1,5 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Zcda.Entities.Dto;
+using Zcda.Entities.Dtos;
 
 namespace BlazorWebAppTest1.Context
 {

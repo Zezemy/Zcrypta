@@ -1,13 +1,13 @@
 ﻿using Binance.Net.Interfaces.Clients;
 using BlazorWebAppTest1.Hubs;
-using BlazorWebAppTest1.Manager;
 using CryptoExchange.Net.CommonObjects;
 using CryptoExchange.Net.Interfaces;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
-using Zcda.Entities.Dto;
+using Zcda.Entities.Dtos;
 using Zcda.Entities.Interfaces;
-using Zcda.Entities.BackgroundService;
+using BlazorWebAppTest1.Managers;
+using Zcda.Entities.BackgroundServices;
 
 namespace BlazorWebAppTest1.BackgroundServices
 {

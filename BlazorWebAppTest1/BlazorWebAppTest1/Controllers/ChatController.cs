@@ -1,8 +1,8 @@
 ﻿using BlazorWebAppTest1.Context;
 using Microsoft.AspNetCore.Mvc;
-using Zcda.Entities.Dto;
+using Zcda.Entities.Dtos;
 
-namespace BlazorWebAppTest1.Controller
+namespace BlazorWebAppTest1.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]

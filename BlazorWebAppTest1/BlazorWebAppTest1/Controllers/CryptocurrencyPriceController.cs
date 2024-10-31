@@ -1,12 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Binance.Net;
 using Microsoft.EntityFrameworkCore;
-using Zcda.Entities.Dto;
 using CryptoExchange.Net.CommonObjects;
 using CryptoExchange.Net.Interfaces;
 using Binance.Net.Interfaces.Clients;
+using Zcda.Entities.Dtos;
 
-namespace BlazorWebAppTest1.Controller
+namespace BlazorWebAppTest1.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]

@@ -1,4 +1,4 @@
-﻿namespace Zcda.Entities.BackgroundService
+﻿namespace Zcda.Entities.BackgroundServices
 {
     public sealed class UpdateOptions
     {
