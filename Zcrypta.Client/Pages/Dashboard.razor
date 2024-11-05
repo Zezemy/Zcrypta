@@ -1,0 +1,91 @@
+﻿@page "/dashboard"
+@rendermode InteractiveAuto
+@using Microsoft.AspNetCore.SignalR.Client
+@using Zcrypta.Entities.Dtos
+@inject NavigationManager Navigation
+@implements IAsyncDisposable
+
+<PageTitle>Dashboard</PageTitle>
+
+@if (!IsConnected)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="d-flex flex-grow-1 gap-4">
+        <MudTextField @bind-Value="tickerInput" Label="Enter a ticker" Variant="Variant.Outlined" Class=""></MudTextField>
+
+        <MudButton Class="ms-4" OnClick="() =>JoinTicker(tickerInput)" Disabled="@(!IsConnected)" Variant="Variant.Filled" Color="Color.Primary">Join to Ticker</MudButton>
+
+        @if (prices.Count == 0)
+        {
+            <p><em>Loading...</em></p>
+        }
+        else
+        {
+            <div class="ms-4 flex-grow-1">
+                <ul id="priceList">
+                    @foreach (var price in prices)
+                    {
+                        <li>@price.Value.Symbol : @price.Value.Price</li>
+                    }
+                </ul>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private HubConnection? hubConnection;
+    private Dictionary<string, CurrentPrice> prices = [];
+    private string? tickerInput;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Navigation.ToAbsoluteUri("/pricehub"))
+            .Build();
+
+        hubConnection.On<CurrentPrice>("ReceiveStockPriceUpdate", (price) =>
+        {
+            if (!prices.ContainsKey(price.Symbol))
+            {
+                prices.Add(price.Symbol, price);
+            }
+            else
+            {
+                prices[price.Symbol] = price;
+            }
+            InvokeAsync(StateHasChanged);
+        });
+
+        await hubConnection.StartAsync();
+
+        List<string> defaultTickers = new List<string> { "BTCUSDT", "ETHUSDT", "SAGAUSDT", "SUIUSDT" };
+
+        foreach (var ticker in defaultTickers)
+        {
+            await JoinTicker(ticker);
+        }
+    }
+
+    private async Task JoinTicker(string? ticker)
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.SendAsync("JoinStockGroup", ticker);
+        }
+    }
+
+    public bool IsConnected =>
+        hubConnection?.State == HubConnectionState.Connected;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}
