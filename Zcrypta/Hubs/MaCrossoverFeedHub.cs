@@ -5,11 +5,10 @@ using Zcrypta.Entities.Interfaces;
 
 namespace Zcrypta.Hubs
 {
-    internal sealed class StocksFeedHub(ActiveTickerManager activeTickerManager) : Hub<IPriceUpdateClientContract>
+    internal sealed class MaCrossoverFeedHub() : Hub<ISignallerClientContract>
     {
         public async Task JoinStockGroup(string ticker)
         {
-            activeTickerManager.AddTicker(ticker);
             await Groups.AddToGroupAsync(Context.ConnectionId, ticker);
         }
     };

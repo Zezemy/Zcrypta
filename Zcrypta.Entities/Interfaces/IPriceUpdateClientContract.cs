@@ -2,7 +2,7 @@
 
 namespace Zcrypta.Entities.Interfaces
 {
-    public interface IPriceUpdateClient
+    public interface IPriceUpdateClientContract
     {
         Task ReceiveStockPriceUpdate(CurrentPrice update);
     }

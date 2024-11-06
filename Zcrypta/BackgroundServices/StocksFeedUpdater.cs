@@ -14,7 +14,7 @@ namespace Zcrypta.BackgroundServices
     internal sealed class StocksFeedUpdater(
         ActiveTickerManager activeTickerManager,
         IServiceScopeFactory serviceScopeFactory,
-        IHubContext<StocksFeedHub, IPriceUpdateClient> hubContext,
+        IHubContext<StocksFeedHub, IPriceUpdateClientContract> hubContext,
         IOptions<UpdateOptions> options,
         ILogger<StocksFeedUpdater> logger,
         IBinanceRestClient restClient)

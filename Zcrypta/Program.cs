@@ -53,6 +53,7 @@ builder.Services.AddBinance();
 
 builder.Services.AddSingleton<ActiveTickerManager>();
 builder.Services.AddHostedService<StocksFeedUpdater>();
+builder.Services.AddHostedService<MaCrossoverSignaller>();
 
 builder.Services.Configure<UpdateOptions>(builder.Configuration.GetSection("PriceUpdateOptions"));
 
@@ -85,6 +86,7 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<ChatHub>("/chathub");
 app.MapHub<StocksFeedHub>("/pricehub");
+app.MapHub<MaCrossoverFeedHub>("/signalshub");
 
 app.UseStaticFiles();
 app.UseAntiforgery();
