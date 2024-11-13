@@ -1,0 +1,15 @@
+﻿@page "/logout"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@using Zcrypta.Client.Authentication
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Navigation
+
+@code {
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await ((CustomAuthStateProvider)AuthStateProvider).MarkUserAsLoggedOut();
+        Navigation.NavigateTo("/login");
+    }
+}

@@ -11,6 +11,7 @@
     <ProjectReference Include="..\Zcrypta.Client\Zcrypta.Client.csproj" />
     <ProjectReference Include="..\Zcrypta.Entities\Zcrypta.Entities.csproj" />
     <PackageReference Include="Binance.Net" Version="10.8.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="8.*" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.10" />

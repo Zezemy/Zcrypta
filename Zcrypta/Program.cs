@@ -10,6 +10,14 @@ using Binance.Net.Interfaces.Clients;
 using Zcrypta.BackgroundServices;
 using Zcrypta.Managers;
 using Zcrypta.Entities.BackgroundServices;
+using Zcrypta.Migrations;
+using Microsoft.Extensions.Hosting;
+using Microsoft.OpenApi.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Zcrypta.Repositories;
+using Zcrypta.Services;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,7 +37,31 @@ builder.Services.AddProblemDetails();
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        In = ParameterLocation.Header,
+        Description = "Please insert JWT with Bearer into field",
+        Name = "Authorization",
+        Type = SecuritySchemeType.ApiKey
+    });
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+            Reference = new OpenApiReference
+            {
+                Type = ReferenceType.SecurityScheme,
+                Id = "Bearer"
+            }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
+
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
@@ -56,6 +88,25 @@ builder.Services.AddHostedService<StocksFeedUpdater>();
 builder.Services.AddHostedService<MaCrossoverSignaller>();
 
 builder.Services.Configure<UpdateOptions>(builder.Configuration.GetSection("PriceUpdateOptions"));
+
+var secret = builder.Configuration.GetValue<string>("Jwt:Secret");
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = "Zcrypta",
+        ValidAudience = "Zcrypta",
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret))
+    };
+});
+
+builder.Services.AddScoped<IAuthRepository, AuthRepository>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 app.UseCors("corsapp");
@@ -97,5 +148,11 @@ app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddInteractiveWebAssemblyRenderMode()
     .AddAdditionalAssemblies(typeof(Zcrypta.Client._Imports).Assembly);
+
+//using (var scope = app.Services.CreateScope())
+//{
+//    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+//    db.Database.Migrate();
+//}
 
 app.Run();
