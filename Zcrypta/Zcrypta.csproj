@@ -8,11 +8,11 @@
 
 
   <ItemGroup>
-    <ProjectReference Include="..\Zcrypta.Client\Zcrypta.Client.csproj" />
     <ProjectReference Include="..\Zcrypta.Entities\Zcrypta.Entities.csproj" />
     <PackageReference Include="Binance.Net" Version="10.8.1" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="8.*" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="8.0.10">
@@ -21,6 +21,11 @@
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.9.0" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <Folder Include="Migrations\" />
   </ItemGroup>
 
 </Project>

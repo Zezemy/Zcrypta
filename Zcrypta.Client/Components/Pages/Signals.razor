@@ -1,11 +1,11 @@
-﻿@page "/dashboard"
+﻿@page "/signals"
 @rendermode InteractiveAuto
 @using Microsoft.AspNetCore.SignalR.Client
 @using Zcrypta.Entities.Dtos
-@inject NavigationManager Navigation
+@inject IConfiguration Configuration
 @implements IAsyncDisposable
 
-<PageTitle>Dashboard</PageTitle>
+<PageTitle>Signals</PageTitle>
 
 @if (!IsConnected)
 {
@@ -18,17 +18,17 @@ else
 
         <MudButton Class="ms-4" OnClick="() =>JoinTicker(tickerInput)" Disabled="@(!IsConnected)" Variant="Variant.Filled" Color="Color.Primary">Join to Ticker</MudButton>
 
-        @if (prices.Count == 0)
+        @if (signals.Count == 0)
         {
             <p><em>Loading...</em></p>
         }
         else
         {
             <div class="ms-4 flex-grow-1">
-                <ul id="priceList">
-                    @foreach (var price in prices)
+                <ul id="signalList">
+                    @foreach (var signal in signals)
                     {
-                        <li>@price.Value.Symbol : @price.Value.Price</li>
+                        <li>@signal.Value.Symbol : @signal.Value.SignalType</li>
                     }
                 </ul>
             </div>
@@ -38,31 +38,31 @@ else
 
 @code {
     private HubConnection? hubConnection;
-    private Dictionary<string, CurrentPrice> prices = [];
+    private Dictionary<string, TradingSignal> signals = [];
     private string? tickerInput;
 
     protected override async Task OnInitializedAsync()
     {
         hubConnection = new HubConnectionBuilder()
-            .WithUrl(Navigation.ToAbsoluteUri("/pricehub"))
+            .WithUrl(Configuration["BackendUrl"] + "/signalshub")
             .Build();
 
-        hubConnection.On<CurrentPrice>("ReceiveStockPriceUpdate", (price) =>
+        hubConnection.On<TradingSignal>("ReceiveSignalUpdate", (signal) =>
         {
-            if (!prices.ContainsKey(price.Symbol))
+            if (!signals.ContainsKey(signal.Symbol))
             {
-                prices.Add(price.Symbol, price);
+                signals.Add(signal.Symbol, signal);
             }
             else
             {
-                prices[price.Symbol] = price;
+                signals[signal.Symbol] = signal;
             }
             InvokeAsync(StateHasChanged);
         });
 
         await hubConnection.StartAsync();
 
-        List<string> defaultTickers = new List<string> { "BTCUSDT", "ETHUSDT", "SAGAUSDT", "SUIUSDT" };
+        List<string> defaultTickers = new List<string> { "BTCUSDT" };
 
         foreach (var ticker in defaultTickers)
         {

@@ -1,18 +1,40 @@
-using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
 using MudBlazor.Services;
-using Zcrypta.Client.Authentication;
+using Zcrypta.Client.Components;
 
 var builder = WebAssemblyHostBuilder.CreateDefault(args);
 
-builder.Services.AddSingleton(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
+builder.RootComponents.Add<App>("#app");
+builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddMudServices();
-builder.Services.AddCascadingAuthenticationState();
-builder.Services.AddBlazoredLocalStorage();
+// register the cookie handler
+builder.Services.AddTransient<CookieHandler>();
 
-builder.Services.AddScoped<AuthenticationStateProvider, CustomAuthStateProvider>();
+// set up authorization
+builder.Services.AddAuthorizationCore();
+
+// register the custom state provider
+builder.Services.AddScoped<AuthenticationStateProvider, CookieAuthenticationStateProvider>();
+
+// register the account management interface
 builder.Services.AddScoped(
-    sp => (ICustomAuthStateProvider)sp.GetRequiredService<AuthenticationStateProvider>());
+    sp => (IAccountManagement)sp.GetRequiredService<AuthenticationStateProvider>());
+
+
+builder.Services.AddSingleton(sp => new HttpClient { BaseAddress = new Uri(builder.Configuration["BackendUrl"] ?? "https://localhost:5001") });
+
+// set base address for default host
+builder.Services.AddScoped(sp =>
+    new HttpClient { BaseAddress = new Uri(builder.Configuration["FrontendUrl"] ?? "https://localhost:5002") });
+
+
+
+// configure client for auth interactions
+builder.Services.AddHttpClient(
+    "Auth",
+    opt => opt.BaseAddress = new Uri(builder.Configuration["BackendUrl"] ?? "https://localhost:5001"))
+    .AddHttpMessageHandler<CookieHandler>();
 
 await builder.Build().RunAsync();
