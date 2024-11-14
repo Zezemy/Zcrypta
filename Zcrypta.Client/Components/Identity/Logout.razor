@@ -1,10 +1,9 @@
 @page "/logout"
 @using Zcrypta.Client
+@inject NavigationManager Navigation
 @inject IAccountManagement Acct
 
 <PageTitle>Logout</PageTitle>
-
-<h1>Logout</h1>
 
 <AuthorizeView @ref="authView">
     <Authorized>
@@ -16,6 +15,7 @@
 </AuthorizeView>
 
 @code {
+
     private AuthorizeView? authView;
 
     protected override async Task OnInitializedAsync()
@@ -23,6 +23,8 @@
         if (await Acct.CheckAuthenticatedAsync())
         {
             await Acct.LogoutAsync();
+
+            Navigation.NavigateTo("/");
         }
     }
 }

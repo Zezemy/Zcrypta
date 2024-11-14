@@ -1,57 +1,57 @@
 @page "/register"
+@layout EmptyLayout
 @using Zcrypta.Client
+@using Zcrypta.Entities.Models
+@inject NavigationManager Navigation
 @inject IAccountManagement Acct
 
 <PageTitle>Register</PageTitle>
 
-<h1>Register</h1>
-
-<AuthorizeView>
-    <Authorized>
-        <div class="alert alert-success">You're already logged in as @context.User.Identity?.Name.</div>
-    </Authorized>
-    <NotAuthorized>
-        @if (success)
-        {
-            <div class="alert alert-success">
-                You successfully registered. Now you can <a href="login">login</a>.
-            </div>
-        }
-        else
-        {
-            if (errors)
-            {
-                foreach (var error in errorList)
-                {
-                    <div class="alert alert-danger">@error</div>
+@if (success)
+{
+    <MudContainer MaxWidth="MaxWidth.Small">
+        <div class="alert alert-success">
+            You successfully registered. Now you can <a href="login">login</a>.
+        </div>
+    </MudContainer>
+}
+else
+{
+    <MudContainer MaxWidth="MaxWidth.Small">
+        <AuthorizeView Context="authContext">
+            <Authorized>
+                <div class="alert alert-success">You're logged in as @authContext.User.Identity?.Name.</div>
+            </Authorized>
+            <NotAuthorized>
+                @{
+                    if (errors)
+                    {
+                        foreach (var error in errorList)
+                        {
+                            <div class="alert alert-danger">@error</div>
+                        }
+                    }
                 }
-            }
-            <div class="flex-outer">
-                <div>
-                    <label for="email">
-                        Email:
-                    </label>
-                    <input autofocus autocomplete="on" required id="email" name="emailInput" placeholder="Enter your email address" type="email" @bind-value="email" />
-                </div>
-                <div>
-                    <label for="password">
-                        Password:
-                    </label>
-                    <input required id="password" name="passwordInput" placeholder="Enter your password" type="password" @bind-value="password" /><br />
-                </div>
-                <div>
-                    <label for="confirmPassword">
-                        Retype password:
-                    </label>
-                    <input required id="confirmPassword" name="confirmPasswordInput" placeholder="Re-enter your password" type="password" @bind-value="confirmPassword" />
-                </div>
-                <div>
-                    <button class="btn btn-primary" @onclick="DoRegisterAsync">Register</button>
-                </div>
-            </div>
-        }
-    </NotAuthorized>
-</AuthorizeView>
+                <EditForm EditContext="@editContext" Class="pa-3">
+                    <MudCard>
+                        <MudCardContent>
+                            <MudTextField @bind-Value="email" Label="Enter your email address" Variant="Variant.Outlined" Class=""></MudTextField>
+                            <MudTextField @bind-Value="password" Label="Password" Variant="Variant.Outlined"
+                                          InputType="@PasswordInput" Adornment="Adornment.End" AdornmentIcon="@PasswordInputIcon"
+                                          OnAdornmentClick="ButtonTestclick" AdornmentAriaLabel="Show Password" />
+                            <MudTextField @bind-Value="confirmPassword" Label="Re-enter your password" Variant="Variant.Outlined"
+                                          InputType="@ConfirmPasswordInput" Adornment="Adornment.End" AdornmentIcon="@ConfirmPasswordInputIcon"
+                                          OnAdornmentClick="ButtonTestclick1" AdornmentAriaLabel="Show Password" />
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton Class="ms-4" OnClick="DoRegisterAsync" Variant="Variant.Filled" Color="Color.Primary">Register</MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </EditForm>
+            </NotAuthorized>
+        </AuthorizeView>
+    </MudContainer>
+}
 
 @code {
     private bool success, errors;
@@ -59,17 +59,63 @@
     private string password = string.Empty;
     private string confirmPassword = string.Empty;
     private string[] errorList = [];
+    bool isPasswordShow;
+    bool isConfirmPasswordShow;
+    InputType PasswordInput = InputType.Password;
+    InputType ConfirmPasswordInput = InputType.Password;
+    string PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+    string ConfirmPasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+    private EditContext? editContext;
+    public LoginModel? _model { get; set; }
+    [Inject] private IDialogService DialogService { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _model ??= new();
+        editContext = new(_model);
+    }
+
+    void ButtonTestclick()
+    {
+        if (isPasswordShow)
+        {
+            isPasswordShow = false;
+            PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+            PasswordInput = InputType.Password;
+        }
+        else
+        {
+            isPasswordShow = true;
+            PasswordInputIcon = Icons.Material.Filled.Visibility;
+            PasswordInput = InputType.Text;
+
+        }
+    }
+
+    void ButtonTestclick1()
+    {
+        if (isConfirmPasswordShow)
+        {
+            isConfirmPasswordShow = false;
+            ConfirmPasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+            ConfirmPasswordInput = InputType.Password;
+        }
+        else
+        {
+            isConfirmPasswordShow = true;
+            ConfirmPasswordInputIcon = Icons.Material.Filled.Visibility;
+            ConfirmPasswordInput = InputType.Text;
+        }
+    }
 
     public async Task DoRegisterAsync()
     {
         success = errors = false;
         errorList = [];
-
         if (string.IsNullOrWhiteSpace(email))
         {
             errors = true;
             errorList = ["Email is required."];
-
             return;
         }
 
@@ -77,7 +123,6 @@
         {
             errors = true;
             errorList = ["Password is required."];
-
             return;
         }
 
@@ -85,7 +130,6 @@
         {
             errors = true;
             errorList = ["Please confirm your password."];
-
             return;
         }
 
@@ -93,7 +137,6 @@
         {
             errors = true;
             errorList = ["Passwords don't match."];
-
             return;
         }
 
@@ -103,7 +146,18 @@
         {
             success = true;
             email = password = confirmPassword = string.Empty;
+            bool? dialogResult = await DialogService.ShowMessageBox(
+            "Success",
+            "Do you want to navigate to login page?",
+            yesText: "Yes", cancelText: "No");
+            var state = dialogResult == null ? "Canceled" : "Yes";
+            StateHasChanged();
+            if (state == "Yes")
+            {
+                Navigation.NavigateTo("/login");
+            }
         }
+
         else
         {
             errors = true;
