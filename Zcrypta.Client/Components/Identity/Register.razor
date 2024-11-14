@@ -4,6 +4,7 @@
 @using Zcrypta.Entities.Models
 @inject NavigationManager Navigation
 @inject IAccountManagement Acct
+@inject ISnackbar Snackbar
 
 <PageTitle>Register</PageTitle>
 
@@ -23,15 +24,6 @@ else
                 <div class="alert alert-success">You're logged in as @authContext.User.Identity?.Name.</div>
             </Authorized>
             <NotAuthorized>
-                @{
-                    if (errors)
-                    {
-                        foreach (var error in errorList)
-                        {
-                            <div class="alert alert-danger">@error</div>
-                        }
-                    }
-                }
                 <EditForm EditContext="@editContext" Class="pa-3">
                     <MudCard>
                         <MudCardContent>
@@ -66,7 +58,7 @@ else
     string PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
     string ConfirmPasswordInputIcon = Icons.Material.Filled.VisibilityOff;
     private EditContext? editContext;
-    public LoginModel? _model { get; set; }
+    public RegisterModel? _model { get; set; }
     [Inject] private IDialogService DialogService { get; set; }
 
     protected override void OnInitialized()
@@ -110,34 +102,45 @@ else
 
     public async Task DoRegisterAsync()
     {
+        string message;
         success = errors = false;
         errorList = [];
         if (string.IsNullOrWhiteSpace(email))
         {
-            errors = true;
-            errorList = ["Email is required."];
+            SetErrorAndDisplayMessage("Email is required.");
             return;
         }
 
         if (string.IsNullOrWhiteSpace(password))
         {
-            errors = true;
-            errorList = ["Password is required."];
+            SetErrorAndDisplayMessage("Password is required.");
             return;
         }
 
         if (string.IsNullOrWhiteSpace(confirmPassword))
         {
-            errors = true;
-            errorList = ["Please confirm your password."];
+            SetErrorAndDisplayMessage("Please confirm your password.");
             return;
         }
 
         if (password != confirmPassword)
         {
-            errors = true;
-            errorList = ["Passwords don't match."];
+            SetErrorAndDisplayMessage("Passwords don't match.");
             return;
+        }
+
+        void SnackbarMessage(string message)
+        {
+            Snackbar.Clear();
+            Snackbar.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
+            Snackbar.Add(message, Severity.Error);
+        }
+
+        void SetErrorAndDisplayMessage(string message)
+        {
+            errors = true;;
+            errorList = [message];
+            SnackbarMessage(message);
         }
 
         var result = await Acct.RegisterAsync(email, password);
