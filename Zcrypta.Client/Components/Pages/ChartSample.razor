@@ -1,0 +1,41 @@
+﻿@page "/chartSample"
+@using Zcrypta.Client.Components.Chart
+@using Zcrypta.Client.Data
+@using Zcrypta.Entities.Models.Chart
+@inject ChartService chartService
+
+<h1>Chart Sample</h1>
+
+<TradingViewChart @ref=myChart />
+
+@code {
+	// Define and load the chart
+	TradingViewChart? myChart;
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		// Only on first render
+		if (!firstRender)
+			return;
+
+		// Load the data
+		ChartData data = new()
+		{
+			ChartEntries = new List<IChartEntry>(await chartService.GetSampleData()),
+			MarkerData = await chartService.GetSampleMarkers()
+		};
+
+		// Optionally define options
+		Zcrypta.Entities.Models.Chart.Options.ChartOptions options = new()
+		{
+			TimeScaleSecondsVisible = false,
+
+			// Setting width to a negative value makes the chart responsive
+			Width = -75,
+		};
+
+		// Load the chart
+		if (myChart != null)
+			await myChart.LoadChartAsync(data, options);
+	}	
+}

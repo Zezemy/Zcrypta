@@ -6,5 +6,6 @@ namespace Zcrypta.Entities.Dtos
     {
         public string Symbol { get; set; }
         public SignalTypes SignalType { get; set; }
+        public DateTime DateTime { get; set; }
     }
 }

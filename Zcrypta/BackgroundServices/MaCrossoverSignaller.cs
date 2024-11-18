@@ -39,9 +39,13 @@ namespace Zcrypta.BackgroundServices
             var kLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, Binance.Net.Enums.KlineInterval.OneMinute);
             var closePricesShort = kLines.Data.TakeLast(10).Select(x => x.ClosePrice).Average();
             var closePricesLong = kLines.Data.TakeLast(20).Select(x => x.ClosePrice).Average();
+            var latestCloseTime = kLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
+            //DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
+            //DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
             TradingSignal signal= new TradingSignal();
             signal.SignalType = Entities.Enums.SignalTypes.Hold;
             signal.Symbol = ticker;
+            signal.DateTime = latestCloseTime;
             if (closePricesShort > closePricesLong)
             {
                 signal.SignalType = Entities.Enums.SignalTypes.Buy;
@@ -50,7 +54,6 @@ namespace Zcrypta.BackgroundServices
             {
                 signal.SignalType = Entities.Enums.SignalTypes.Sell;
             }
-
 
             //await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
 

@@ -28,7 +28,7 @@ else
                 <ul id="signalList">
                     @foreach (var signal in signals)
                     {
-                        <li>@signal.Value.Symbol : @signal.Value.SignalType</li>
+                        <li>@signal.Value.Symbol : @signal.Value.SignalType : @signal.Value.DateTime</li>
                     }
                 </ul>
             </div>
