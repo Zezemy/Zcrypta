@@ -14,16 +14,16 @@ using Zcrypta.Entities.Enums;
 
 namespace Zcrypta.BackgroundServices
 {
-	internal sealed class MaCrossoverSignaller(
+	internal sealed class RsiSignaller(
 		IServiceScopeFactory serviceScopeFactory,
-		IHubContext<MaCrossoverFeedHub, ISignallerClientContract> hubContext,
-		IOptions<MaCrossoverWorkerOptions> options,
-		ILogger<MaCrossoverSignaller> logger,
+		IHubContext<RsiFeedHub, ISignallerClientContract> hubContext,
+		IOptions<RsiWorkerOptions> options,
+		ILogger<RsiSignaller> logger,
 		IBinanceRestClient restClient)
 		: BackgroundService
 	{
 		private readonly Random _random = new();
-		private readonly MaCrossoverWorkerOptions _options = options.Value;
+		private readonly RsiWorkerOptions _options = options.Value;
 
 		protected override async Task ExecuteAsync(CancellationToken stoppingToken)
 		{
@@ -38,13 +38,13 @@ namespace Zcrypta.BackgroundServices
 		private async Task UpdateStockPrices()
 		{
 			var ticker = _options.Ticker;
-			var kLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, Binance.Net.Enums.KlineInterval.OneMinute, limit:20);
+			var kLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, Binance.Net.Enums.KlineInterval.OneMinute,limit:20);
 			var closePricesLongList = kLines.Data.TakeLast(20).Select(x => x.ClosePrice);
 			var latestCloseTime = kLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
 			//DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
 			//DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
 			TradingSignal signal = new TradingSignal();
-			signal.SignalType = MovingAverageCrossover(closePricesLongList);
+			signal.SignalType = RSISignal(closePricesLongList.ToList());
 			signal.Symbol = ticker;
 			signal.DateTime = latestCloseTime;
 
@@ -65,16 +65,31 @@ namespace Zcrypta.BackgroundServices
 			return newPrice;
 		}
 
-		// 1. Simple Moving Average Crossover
-		public static SignalTypes MovingAverageCrossover(IEnumerable<decimal> prices, int shortPeriod = 10, int longPeriod = 20)
+		// 2. RSI (Relative Strength Index)
+		public static SignalTypes RSISignal(List<decimal> prices, int period = 14, decimal overbought = 70, decimal oversold = 30)
 		{
-			if (prices.Count() < longPeriod) return SignalTypes.Hold;
+			if (prices.Count < period + 1) return SignalTypes.Hold;
 
-			var shortMA = prices.TakeLast(shortPeriod).Average();
-			var longMA = prices.TakeLast(longPeriod).Average();
+			var gains = new List<decimal>();
+			var losses = new List<decimal>();
 
-			if (shortMA > longMA) return SignalTypes.Buy;
-			if (shortMA < longMA) return SignalTypes.Sell;
+			for (int i = 1; i < prices.Count; i++)
+			{
+				var difference = prices[i] - prices[i - 1];
+				gains.Add(difference > 0 ? difference : 0);
+				losses.Add(difference < 0 ? -difference : 0);
+			}
+
+			var avgGain = gains.TakeLast(period).Average();
+			var avgLoss = losses.TakeLast(period).Average();
+
+			if (avgLoss == 0) return SignalTypes.Hold;
+
+			var rs = avgGain / avgLoss;
+			var rsi = 100 - (100 / (1 + rs));
+
+			if (rsi < oversold) return SignalTypes.Buy;
+			if (rsi > overbought) return SignalTypes.Sell;
 			return SignalTypes.Hold;
 		}
 	}

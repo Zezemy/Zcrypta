@@ -80,6 +80,9 @@ builder.Services.AddBinance();
 builder.Services.AddSingleton<ActiveTickerManager>();
 builder.Services.AddHostedService<StocksFeedUpdater>();
 builder.Services.AddHostedService<MaCrossoverSignaller>();
+builder.Services.AddHostedService<RsiSignaller>();
+builder.Services.AddHostedService<MacdSignaller>();
+builder.Services.AddHostedService<BollingerBandsSignaller>();
 
 builder.Services.Configure<UpdateOptions>(builder.Configuration.GetSection("PriceUpdateOptions"));
 
@@ -141,7 +144,10 @@ app.UseAuthorization();
 app.MapControllers();
 //app.MapHub<ChatHub>("/chathub");
 app.MapHub<StocksFeedHub>("/pricehub");
-app.MapHub<MaCrossoverFeedHub>("/signalshub");
+app.MapHub<MaCrossoverFeedHub>("/ma-hub");
+app.MapHub<RsiFeedHub>("/rsi-hub");
+app.MapHub<MacdFeedHub>("/macd-hub");
+app.MapHub<BollingerBandsFeedHub>("/bollinger-bands-hub");
 
 app.MapIdentityApi<User>();
 //app.UseAntiforgery();

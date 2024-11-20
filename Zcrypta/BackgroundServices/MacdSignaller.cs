@@ -14,16 +14,16 @@ using Zcrypta.Entities.Enums;
 
 namespace Zcrypta.BackgroundServices
 {
-	internal sealed class MaCrossoverSignaller(
+	internal sealed class MacdSignaller(
 		IServiceScopeFactory serviceScopeFactory,
-		IHubContext<MaCrossoverFeedHub, ISignallerClientContract> hubContext,
-		IOptions<MaCrossoverWorkerOptions> options,
-		ILogger<MaCrossoverSignaller> logger,
+		IHubContext<MacdFeedHub, ISignallerClientContract> hubContext,
+		IOptions<MacdWorkerOptions> options,
+		ILogger<MacdSignaller> logger,
 		IBinanceRestClient restClient)
 		: BackgroundService
 	{
 		private readonly Random _random = new();
-		private readonly MaCrossoverWorkerOptions _options = options.Value;
+		private readonly MacdWorkerOptions _options = options.Value;
 
 		protected override async Task ExecuteAsync(CancellationToken stoppingToken)
 		{
@@ -44,7 +44,7 @@ namespace Zcrypta.BackgroundServices
 			//DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
 			//DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
 			TradingSignal signal = new TradingSignal();
-			signal.SignalType = MovingAverageCrossover(closePricesLongList);
+			signal.SignalType = MACDSignal(closePricesLongList.ToList());
 			signal.Symbol = ticker;
 			signal.DateTime = latestCloseTime;
 
@@ -65,17 +65,31 @@ namespace Zcrypta.BackgroundServices
 			return newPrice;
 		}
 
-		// 1. Simple Moving Average Crossover
-		public static SignalTypes MovingAverageCrossover(IEnumerable<decimal> prices, int shortPeriod = 10, int longPeriod = 20)
-		{
-			if (prices.Count() < longPeriod) return SignalTypes.Hold;
+        // 3. MACD (Moving Average Convergence Divergence)
+        public static SignalTypes MACDSignal(List<decimal> prices, int fastPeriod = 12, int slowPeriod = 26, int signalPeriod = 9)
+        {
+            if (prices.Count < slowPeriod) return SignalTypes.Hold;
 
-			var shortMA = prices.TakeLast(shortPeriod).Average();
-			var longMA = prices.TakeLast(longPeriod).Average();
+            var fastEMA = CalculateEMA(prices, fastPeriod);
+            var slowEMA = CalculateEMA(prices, slowPeriod);
+            var macd = fastEMA - slowEMA;
+            var signal = CalculateEMA(new List<decimal> { macd }, signalPeriod);
 
-			if (shortMA > longMA) return SignalTypes.Buy;
-			if (shortMA < longMA) return SignalTypes.Sell;
-			return SignalTypes.Hold;
-		}
-	}
+            if (macd > signal) return SignalTypes.Buy;
+            if (macd < signal) return SignalTypes.Sell;
+            return SignalTypes.Hold;
+        }
+
+        private static decimal CalculateEMA(List<decimal> prices, int period)
+        {
+            var multiplier = 2.0m / (period + 1);
+            var ema = prices.Take(period).Average();
+
+            foreach (var price in prices.Skip(period))
+            {
+                ema = (price - ema) * multiplier + ema;
+            }
+            return ema;
+        }
+    }
 }

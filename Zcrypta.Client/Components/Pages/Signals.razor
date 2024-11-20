@@ -14,19 +14,64 @@
 else
 {
     <div class="d-flex flex-grow-1 gap-4">
-        <MudTextField @bind-Value="tickerInput" Label="Enter a ticker" Variant="Variant.Outlined" Class=""></MudTextField>
+        @* <MudTextField @bind-Value="tickerInput" Label="Enter a ticker" Variant="Variant.Outlined" Class=""></MudTextField> *@
 
-        <MudButton Class="ms-4" OnClick="() =>JoinTicker(tickerInput)" Disabled="@(!IsConnected)" Variant="Variant.Filled" Color="Color.Primary">Join to Ticker</MudButton>
+        @* <MudButton Class="ms-4" OnClick="() =>JoinTicker(tickerInput)" Disabled="@(!IsConnected)" Variant="Variant.Filled" Color="Color.Primary">Join to Ticker</MudButton> *@
 
-        @if (signals.Count == 0)
+        @if (maSignals.Count == 0)
         {
-            <p><em>Loading...</em></p>
+            <p><em>Ma Signals Loading...</em></p>
         }
         else
         {
             <div class="ms-4 flex-grow-1">
                 <ul id="signalList">
-                    @foreach (var signal in signals)
+                    @foreach (var signal in maSignals)
+                    {
+                        <li>@signal.Value.Symbol : @signal.Value.SignalType : @signal.Value.DateTime</li>
+                    }
+                </ul>
+            </div>
+        }
+        @if (rsiSignals.Count == 0)
+        {
+            <p><em>Rsi Signals Loading...</em></p>
+        }
+        else
+        {
+            <div class="ms-4 flex-grow-1">
+                <ul id="signalList">
+                    @foreach (var signal in rsiSignals)
+                    {
+                        <li>@signal.Value.Symbol : @signal.Value.SignalType : @signal.Value.DateTime</li>
+                    }
+                </ul>
+            </div>
+        }
+        @if (macdSignals.Count == 0)
+        {
+            <p><em>Macd Signals Loading...</em></p>
+        }
+        else
+        {
+            <div class="ms-4 flex-grow-1">
+                <ul id="signalList">
+                    @foreach (var signal in macdSignals)
+                    {
+                        <li>@signal.Value.Symbol : @signal.Value.SignalType : @signal.Value.DateTime</li>
+                    }
+                </ul>
+            </div>
+        }
+        @if (bollingerBandsSignals.Count == 0)
+        {
+            <p><em>Bollinger Bands Signals Loading...</em></p>
+        }
+        else
+        {
+            <div class="ms-4 flex-grow-1">
+                <ul id="signalList">
+                    @foreach (var signal in bollingerBandsSignals)
                     {
                         <li>@signal.Value.Symbol : @signal.Value.SignalType : @signal.Value.DateTime</li>
                     }
@@ -37,16 +82,88 @@ else
 }
 
 @code {
-    private HubConnection? hubConnection;
-    private Dictionary<string, TradingSignal> signals = [];
+    private HubConnection? maHubConnection, rsiHubConnection, macdHubConnection, bollingerBandsHubConnection;
+    private Dictionary<string, TradingSignal> maSignals = [];
+    private Dictionary<string, TradingSignal> rsiSignals = [];
+    private Dictionary<string, TradingSignal> macdSignals = [];
+    private Dictionary<string, TradingSignal> bollingerBandsSignals = [];
     private string? tickerInput;
 
     protected override async Task OnInitializedAsync()
     {
-        hubConnection = new HubConnectionBuilder()
-            .WithUrl(Configuration["BackendUrl"] + "/signalshub")
+        maHubConnection = new HubConnectionBuilder()
+            .WithUrl(Configuration["BackendUrl"] + "/ma-hub")
             .Build();
+        rsiHubConnection = new HubConnectionBuilder()
+            .WithUrl(Configuration["BackendUrl"] + "/rsi-hub")
+            .Build();
+        macdHubConnection = new HubConnectionBuilder()
+            .WithUrl(Configuration["BackendUrl"] + "/macd-hub")
+            .Build();
+        bollingerBandsHubConnection = new HubConnectionBuilder()
+            .WithUrl(Configuration["BackendUrl"] + "/bollinger-bands-hub")
+            .Build();
+        await SetHubConnection(maHubConnection, maSignals);
+        await SetHubConnection(rsiHubConnection, rsiSignals);
+        await SetHubConnection(macdHubConnection, macdSignals);
+        await SetHubConnection(bollingerBandsHubConnection, bollingerBandsSignals);
 
+        List<string> defaultTickers = new List<string> { "BTCUSDT", "ETHUSDT", "SUIUSDT", "ACAUSDT"};
+
+        foreach (var ticker in defaultTickers)
+        {
+            await JoinTicker(ticker, maHubConnection);
+        }
+
+        foreach (var ticker in defaultTickers)
+        {
+            await JoinTicker(ticker, rsiHubConnection);
+        }
+
+        foreach (var ticker in defaultTickers)
+        {
+            await JoinTicker(ticker, macdHubConnection);
+        }
+
+        foreach (var ticker in defaultTickers)
+        {
+            await JoinTicker(ticker, bollingerBandsHubConnection);
+        }
+    }
+
+    private async Task JoinTicker(string? ticker, HubConnection hubConnection)
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.SendAsync("JoinStockGroup", ticker);
+        }
+    }
+
+    public bool IsConnected =>
+        maHubConnection?.State == HubConnectionState.Connected;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (maHubConnection is not null)
+        {
+            await maHubConnection.DisposeAsync();
+        }
+        if (rsiHubConnection is not null)
+        {
+            await rsiHubConnection.DisposeAsync();
+        }
+        if (macdHubConnection is not null)
+        {
+            await macdHubConnection.DisposeAsync();
+        }
+        if (bollingerBandsHubConnection is not null)
+        {
+            await bollingerBandsHubConnection.DisposeAsync();
+        }
+    }
+
+    protected async Task SetHubConnection(HubConnection hubConnection, Dictionary<string, TradingSignal> signals)
+    {
         hubConnection.On<TradingSignal>("ReceiveSignalUpdate", (signal) =>
         {
             if (!signals.ContainsKey(signal.Symbol))
@@ -61,31 +178,5 @@ else
         });
 
         await hubConnection.StartAsync();
-
-        List<string> defaultTickers = new List<string> { "BTCUSDT" };
-
-        foreach (var ticker in defaultTickers)
-        {
-            await JoinTicker(ticker);
-        }
-    }
-
-    private async Task JoinTicker(string? ticker)
-    {
-        if (hubConnection is not null)
-        {
-            await hubConnection.SendAsync("JoinStockGroup", ticker);
-        }
-    }
-
-    public bool IsConnected =>
-        hubConnection?.State == HubConnectionState.Connected;
-
-    public async ValueTask DisposeAsync()
-    {
-        if (hubConnection is not null)
-        {
-            await hubConnection.DisposeAsync();
-        }
     }
 }

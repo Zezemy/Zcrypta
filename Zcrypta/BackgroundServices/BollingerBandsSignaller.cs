@@ -14,16 +14,16 @@ using Zcrypta.Entities.Enums;
 
 namespace Zcrypta.BackgroundServices
 {
-	internal sealed class MaCrossoverSignaller(
+	internal sealed class BollingerBandsSignaller(
 		IServiceScopeFactory serviceScopeFactory,
-		IHubContext<MaCrossoverFeedHub, ISignallerClientContract> hubContext,
-		IOptions<MaCrossoverWorkerOptions> options,
-		ILogger<MaCrossoverSignaller> logger,
+		IHubContext<BollingerBandsFeedHub, ISignallerClientContract> hubContext,
+		IOptions<BollingerBandsWorkerOptions> options,
+		ILogger<BollingerBandsSignaller> logger,
 		IBinanceRestClient restClient)
 		: BackgroundService
 	{
 		private readonly Random _random = new();
-		private readonly MaCrossoverWorkerOptions _options = options.Value;
+		private readonly BollingerBandsWorkerOptions _options = options.Value;
 
 		protected override async Task ExecuteAsync(CancellationToken stoppingToken)
 		{
@@ -44,7 +44,7 @@ namespace Zcrypta.BackgroundServices
 			//DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
 			//DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
 			TradingSignal signal = new TradingSignal();
-			signal.SignalType = MovingAverageCrossover(closePricesLongList);
+			signal.SignalType = BollingerBandsSignal(closePricesLongList.ToList());
 			signal.Symbol = ticker;
 			signal.DateTime = latestCloseTime;
 
@@ -65,17 +65,28 @@ namespace Zcrypta.BackgroundServices
 			return newPrice;
 		}
 
-		// 1. Simple Moving Average Crossover
-		public static SignalTypes MovingAverageCrossover(IEnumerable<decimal> prices, int shortPeriod = 10, int longPeriod = 20)
-		{
-			if (prices.Count() < longPeriod) return SignalTypes.Hold;
+        // 4. Bollinger Bands
+        public static SignalTypes BollingerBandsSignal(List<decimal> prices, int period = 20, decimal standardDeviations = 2)
+        {
+            if (prices.Count < period) return SignalTypes.Hold;
 
-			var shortMA = prices.TakeLast(shortPeriod).Average();
-			var longMA = prices.TakeLast(longPeriod).Average();
+            var sma = prices.TakeLast(period).Average();
+            var std = CalculateStandardDeviation(prices.TakeLast(period).ToList());
 
-			if (shortMA > longMA) return SignalTypes.Buy;
-			if (shortMA < longMA) return SignalTypes.Sell;
-			return SignalTypes.Hold;
-		}
-	}
+            var upperBand = sma + (standardDeviations * std);
+            var lowerBand = sma - (standardDeviations * std);
+            var currentPrice = prices.Last();
+
+            if (currentPrice < lowerBand) return SignalTypes.Buy;
+            if (currentPrice > upperBand) return SignalTypes.Sell;
+            return SignalTypes.Hold;
+        }
+
+        private static decimal CalculateStandardDeviation(List<decimal> values)
+        {
+            var avg = values.Average();
+            var sumOfSquaresOfDifferences = values.Select(val => (val - avg) * (val - avg)).Sum();
+            return (decimal)Math.Sqrt((double)(sumOfSquaresOfDifferences / values.Count));
+        }
+    }
 }
