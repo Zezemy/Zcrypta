@@ -78,15 +78,32 @@ else
                 </ul>
             </div>
         }
+        @if (stochasticOscillatorSignals.Count == 0)
+        {
+            <p><em>Stochastic Oscillator Signals Loading...</em></p>
+        }
+        else
+        {
+            <div class="ms-4 flex-grow-1">
+                <ul id="signalList">
+                    @foreach (var signal in stochasticOscillatorSignals)
+                    {
+                        <li>@signal.Value.Symbol : @signal.Value.SignalType : @signal.Value.DateTime</li>
+                    }
+                </ul>
+            </div>
+        }
     </div>
 }
 
 @code {
-    private HubConnection? maHubConnection, rsiHubConnection, macdHubConnection, bollingerBandsHubConnection;
+    private HubConnection? maHubConnection, rsiHubConnection, macdHubConnection, bollingerBandsHubConnection, 
+    stochasticOscillatorHubConnection;
     private Dictionary<string, TradingSignal> maSignals = [];
     private Dictionary<string, TradingSignal> rsiSignals = [];
     private Dictionary<string, TradingSignal> macdSignals = [];
     private Dictionary<string, TradingSignal> bollingerBandsSignals = [];
+    private Dictionary<string, TradingSignal> stochasticOscillatorSignals = [];
     private string? tickerInput;
 
     protected override async Task OnInitializedAsync()
@@ -103,12 +120,16 @@ else
         bollingerBandsHubConnection = new HubConnectionBuilder()
             .WithUrl(Configuration["BackendUrl"] + "/bollinger-bands-hub")
             .Build();
+        stochasticOscillatorHubConnection = new HubConnectionBuilder()
+            .WithUrl(Configuration["BackendUrl"] + "/stochastic-oscillator-hub")
+            .Build();
         await SetHubConnection(maHubConnection, maSignals);
         await SetHubConnection(rsiHubConnection, rsiSignals);
         await SetHubConnection(macdHubConnection, macdSignals);
         await SetHubConnection(bollingerBandsHubConnection, bollingerBandsSignals);
+        await SetHubConnection(stochasticOscillatorHubConnection, stochasticOscillatorSignals);
 
-        List<string> defaultTickers = new List<string> { "BTCUSDT", "ETHUSDT", "SUIUSDT", "ACAUSDT"};
+        List<string> defaultTickers = new List<string> { "BTCUSDT", "ETHUSDT", "SUIUSDT", "ACAUSDT", "AIUSDT"};
 
         foreach (var ticker in defaultTickers)
         {
@@ -128,6 +149,11 @@ else
         foreach (var ticker in defaultTickers)
         {
             await JoinTicker(ticker, bollingerBandsHubConnection);
+        }
+
+        foreach (var ticker in defaultTickers)
+        {
+            await JoinTicker(ticker, stochasticOscillatorHubConnection);
         }
     }
 
@@ -159,6 +185,10 @@ else
         if (bollingerBandsHubConnection is not null)
         {
             await bollingerBandsHubConnection.DisposeAsync();
+        }
+        if (stochasticOscillatorHubConnection is not null)
+        {
+            await stochasticOscillatorHubConnection.DisposeAsync();
         }
     }
 

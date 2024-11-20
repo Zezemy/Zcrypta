@@ -83,6 +83,7 @@ builder.Services.AddHostedService<MaCrossoverSignaller>();
 builder.Services.AddHostedService<RsiSignaller>();
 builder.Services.AddHostedService<MacdSignaller>();
 builder.Services.AddHostedService<BollingerBandsSignaller>();
+builder.Services.AddHostedService<StochasticOscillatorSignaller>();
 
 builder.Services.Configure<UpdateOptions>(builder.Configuration.GetSection("PriceUpdateOptions"));
 
@@ -148,6 +149,7 @@ app.MapHub<MaCrossoverFeedHub>("/ma-hub");
 app.MapHub<RsiFeedHub>("/rsi-hub");
 app.MapHub<MacdFeedHub>("/macd-hub");
 app.MapHub<BollingerBandsFeedHub>("/bollinger-bands-hub");
+app.MapHub<StochasticOscillatorFeedHub>("/stochastic-oscillator-hub");
 
 app.MapIdentityApi<User>();
 //app.UseAntiforgery();
