@@ -1,0 +1,107 @@
+@page "/login"
+@layout EmptyLayout
+@using Zcrypta.Client
+@using Zcrypta.Entities.Models
+@inject NavigationManager Navigation
+@inject IAccountManagement Acct
+
+<PageTitle>Login</PageTitle>
+<MudContainer MaxWidth="MaxWidth.Small">
+<AuthorizeView Context="authContext">
+    <Authorized>
+        <div class="alert alert-success">You're logged in as @authContext.User.Identity?.Name.</div>
+    </Authorized>
+    <NotAuthorized>
+        @{
+            if (errors)
+            {
+                foreach (var error in errorList)
+                {
+                    <div class="alert alert-danger">@error</div>
+                }
+            }
+        }
+        <EditForm EditContext="@editContext" Class="pa-3">
+        <MudCard>
+            <MudCardContent>
+                <MudTextField @bind-Value="email" Label="Enter your email address" Variant="Variant.Outlined" Class=""></MudTextField>
+                <MudTextField @bind-Value="password" Label="Password" Variant="Variant.Outlined" InputType="@PasswordInput" Adornment="Adornment.End" AdornmentIcon="@PasswordInputIcon" OnAdornmentClick="ButtonTestclick" AdornmentAriaLabel="Show Password" />
+            </MudCardContent>
+            <MudCardActions>
+                <MudButton Class="ms-4" OnClick="DoLoginAsync" Variant="Variant.Filled" Color="Color.Primary">Sign In</MudButton>
+            </MudCardActions>
+        </MudCard>
+        </EditForm>
+    </NotAuthorized>
+</AuthorizeView>
+</MudContainer>
+@code {
+    private bool success, errors;
+    private string email = string.Empty;
+    private string password = string.Empty;
+    private string[] errorList = [];
+    bool isShow;
+    private EditContext? editContext;
+    public LoginModel? _model { get; set; }
+    InputType PasswordInput = InputType.Password;
+    string PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    protected override void OnInitialized()
+    {
+        _model ??= new();        
+        editContext = new(_model);
+    }
+
+    void ButtonTestclick()
+    {
+        if (isShow)
+        {
+            isShow = false;
+            PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+            PasswordInput = InputType.Password;
+        }
+
+        else
+        {
+            isShow = true;
+            PasswordInputIcon = Icons.Material.Filled.Visibility;
+            PasswordInput = InputType.Text;
+        }
+    }
+
+    public async Task DoLoginAsync()
+    {
+        success = errors = false;
+        errorList = [];
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            errors = true;
+            errorList = ["Email is required."];
+            return;
+
+        }
+
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            errors = true;
+            errorList = ["Password is required."];
+            return;
+        }
+
+        var result = await Acct.LoginAsync(email, password);
+
+        if (result.Succeeded)
+        {
+            success = true;
+            email = password = string.Empty;
+            Navigation.NavigateTo("/");
+        }
+
+        else
+        {
+            errors = true;
+            errorList = result.ErrorList;
+        }
+
+    }
+}

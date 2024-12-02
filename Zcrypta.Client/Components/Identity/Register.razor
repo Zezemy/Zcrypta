@@ -1,0 +1,170 @@
+@page "/register"
+@layout EmptyLayout
+@using Zcrypta.Client
+@using Zcrypta.Entities.Models
+@inject NavigationManager Navigation
+@inject IAccountManagement Acct
+@inject ISnackbar Snackbar
+
+<PageTitle>Register</PageTitle>
+
+@if (success)
+{
+    <MudContainer MaxWidth="MaxWidth.Small">
+        <div class="alert alert-success">
+            You successfully registered. Now you can <a href="login">login</a>.
+        </div>
+    </MudContainer>
+}
+else
+{
+    <MudContainer MaxWidth="MaxWidth.Small">
+        <AuthorizeView Context="authContext">
+            <Authorized>
+                <div class="alert alert-success">You're logged in as @authContext.User.Identity?.Name.</div>
+            </Authorized>
+            <NotAuthorized>
+                <EditForm EditContext="@editContext" Class="pa-3">
+                    <MudCard>
+                        <MudCardContent>
+                            <MudTextField @bind-Value="email" Label="Enter your email address" Variant="Variant.Outlined" Class=""></MudTextField>
+                            <MudTextField @bind-Value="password" Label="Password" Variant="Variant.Outlined"
+                                          InputType="@PasswordInput" Adornment="Adornment.End" AdornmentIcon="@PasswordInputIcon"
+                                          OnAdornmentClick="ButtonTestclick" AdornmentAriaLabel="Show Password" />
+                            <MudTextField @bind-Value="confirmPassword" Label="Re-enter your password" Variant="Variant.Outlined"
+                                          InputType="@ConfirmPasswordInput" Adornment="Adornment.End" AdornmentIcon="@ConfirmPasswordInputIcon"
+                                          OnAdornmentClick="ButtonTestclick1" AdornmentAriaLabel="Show Password" />
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton Class="ms-4" OnClick="DoRegisterAsync" Variant="Variant.Filled" Color="Color.Primary">Register</MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </EditForm>
+            </NotAuthorized>
+        </AuthorizeView>
+    </MudContainer>
+}
+
+@code {
+    private bool success, errors;
+    private string email = string.Empty;
+    private string password = string.Empty;
+    private string confirmPassword = string.Empty;
+    private string[] errorList = [];
+    bool isPasswordShow;
+    bool isConfirmPasswordShow;
+    InputType PasswordInput = InputType.Password;
+    InputType ConfirmPasswordInput = InputType.Password;
+    string PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+    string ConfirmPasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+    private EditContext? editContext;
+    public RegisterModel? _model { get; set; }
+    [Inject] private IDialogService DialogService { get; set; }
+
+    protected override void OnInitialized()
+    {
+        _model ??= new();
+        editContext = new(_model);
+    }
+
+    void ButtonTestclick()
+    {
+        if (isPasswordShow)
+        {
+            isPasswordShow = false;
+            PasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+            PasswordInput = InputType.Password;
+        }
+        else
+        {
+            isPasswordShow = true;
+            PasswordInputIcon = Icons.Material.Filled.Visibility;
+            PasswordInput = InputType.Text;
+
+        }
+    }
+
+    void ButtonTestclick1()
+    {
+        if (isConfirmPasswordShow)
+        {
+            isConfirmPasswordShow = false;
+            ConfirmPasswordInputIcon = Icons.Material.Filled.VisibilityOff;
+            ConfirmPasswordInput = InputType.Password;
+        }
+        else
+        {
+            isConfirmPasswordShow = true;
+            ConfirmPasswordInputIcon = Icons.Material.Filled.Visibility;
+            ConfirmPasswordInput = InputType.Text;
+        }
+    }
+
+    public async Task DoRegisterAsync()
+    {
+        string message;
+        success = errors = false;
+        errorList = [];
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            SetErrorAndDisplayMessage("Email is required.");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            SetErrorAndDisplayMessage("Password is required.");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(confirmPassword))
+        {
+            SetErrorAndDisplayMessage("Please confirm your password.");
+            return;
+        }
+
+        if (password != confirmPassword)
+        {
+            SetErrorAndDisplayMessage("Passwords don't match.");
+            return;
+        }
+
+        void SnackbarMessage(string message)
+        {
+            Snackbar.Clear();
+            Snackbar.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
+            Snackbar.Add(message, Severity.Error);
+        }
+
+        void SetErrorAndDisplayMessage(string message)
+        {
+            errors = true;;
+            errorList = [message];
+            SnackbarMessage(message);
+        }
+
+        var result = await Acct.RegisterAsync(email, password);
+
+        if (result.Succeeded)
+        {
+            success = true;
+            email = password = confirmPassword = string.Empty;
+            bool? dialogResult = await DialogService.ShowMessageBox(
+            "Success",
+            "Do you want to navigate to login page?",
+            yesText: "Yes", cancelText: "No");
+            var state = dialogResult == null ? "Canceled" : "Yes";
+            StateHasChanged();
+            if (state == "Yes")
+            {
+                Navigation.NavigateTo("/login");
+            }
+        }
+
+        else
+        {
+            errors = true;
+            errorList = result.ErrorList;
+        }
+    }
+}

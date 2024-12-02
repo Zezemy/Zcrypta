@@ -1,0 +1,88 @@
+﻿@page "/"
+@rendermode InteractiveAuto
+@using Microsoft.AspNetCore.SignalR.Client
+@using Zcrypta.Entities.Dtos
+@inject IConfiguration Configuration
+@implements IAsyncDisposable
+
+<PageTitle>Home</PageTitle>
+
+@if (!IsConnected)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <MudContainer MaxWidth="MaxWidth.Medium">
+
+        @if (prices.Count == 0)
+        {
+            <p><em>Loading...</em></p>
+        }
+        else
+        {
+            <div class="ms-4 flex-grow-1">
+                <ul id="priceList">
+                    @foreach (var price in prices)
+                    {
+                        <li>@price.Value.Symbol : @price.Value.Price</li>
+                    }
+                </ul>
+            </div>
+        }
+    </MudContainer>
+}
+
+@code {
+    private HubConnection? hubConnection;
+    private Dictionary<string, CurrentPrice> prices = [];
+    private string? tickerInput;
+
+    protected override async Task OnInitializedAsync()
+    {
+        hubConnection = new HubConnectionBuilder()
+            .WithUrl(Configuration["BackendUrl"] + "/pricehub")
+            .Build();
+
+        hubConnection.On<CurrentPrice>("ReceiveStockPriceUpdate", (price) =>
+        {
+            if (!prices.ContainsKey(price.Symbol))
+            {
+                prices.Add(price.Symbol, price);
+            }
+            else
+            {
+                prices[price.Symbol] = price;
+            }
+            InvokeAsync(StateHasChanged);
+        });
+
+        await hubConnection.StartAsync();
+
+        List<string> defaultTickers = new List<string> { "BTCUSDT", "ETHUSDT", "SAGAUSDT", "SUIUSDT" };
+
+        foreach (var ticker in defaultTickers)
+        {
+            await JoinTicker(ticker);
+        }
+    }
+
+    private async Task JoinTicker(string? ticker)
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.SendAsync("JoinStockGroup", ticker);
+        }
+    }
+
+    public bool IsConnected =>
+        hubConnection?.State == HubConnectionState.Connected;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
+    }
+}
