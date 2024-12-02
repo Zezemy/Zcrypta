@@ -15,8 +15,9 @@ using Zcrypta.Entities.Enums;
 namespace Zcrypta.BackgroundServices
 {
 	internal sealed class StochasticOscillatorSignaller(
-		IServiceScopeFactory serviceScopeFactory,
-		IHubContext<StochasticOscillatorFeedHub, ISignallerClientContract> hubContext,
+        SignalTickerManager signalTickerManager,
+        IServiceScopeFactory serviceScopeFactory,
+		IHubContext<TradingSignalSenderHub, ISignallerClientContract> hubContext,
 		IOptions<StochasticOscillatorWorkerOptions> options,
 		ILogger<StochasticOscillatorSignaller> logger,
 		IBinanceRestClient restClient)
@@ -37,22 +38,27 @@ namespace Zcrypta.BackgroundServices
 
 		private async Task UpdateStockPrices()
 		{
-			var ticker = _options.Ticker;
-			var binanceKLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, Binance.Net.Enums.KlineInterval.OneMinute, limit:20);
-			var kLines = binanceKLines.Data.TakeLast(20).Select(x => x.ConvertToKLine());
-			var latestCloseTime = binanceKLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
-			//DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
-			//DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
-			TradingSignal signal = new TradingSignal();
-			signal.SignalType = StochasticSignal(kLines);
-			signal.Symbol = ticker;
-			signal.DateTime = latestCloseTime;
+			foreach (string ticker in signalTickerManager.GetAllTickers())
+			{
+				//var ticker = _options.Ticker;
+				var binanceKLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, Binance.Net.Enums.KlineInterval.OneMinute, limit: 20);
+				var kLines = binanceKLines.Data.TakeLast(20).Select(x => x.ConvertToKLine());
+				var latestCloseTime = binanceKLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
+				//DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
+				//DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
+				TradingSignal signal = new TradingSignal();
+				signal.SignalType = StochasticSignal(kLines);
+				signal.Symbol = ticker;
+				signal.DateTime = latestCloseTime;
+				signal.StrategyType = StrategyTypes.StochasticOscillator;
+                signal.Interval = KLineIntervals.OneMinute;
 
-			//await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
+                //await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
 
-			await hubContext.Clients.Group(ticker).ReceiveSignalUpdate(signal);
+                await hubContext.Clients.Group(ticker + StrategyTypes.StochasticOscillator).ReceiveSignalUpdate(signal);
 
-			logger.LogInformation("Updated {ticker} signal to {signal}", ticker, signal);
+				logger.LogInformation("Updated {ticker} signal to {signal}", ticker, signal);
+			}
 		}
 
 		private decimal CalculateNewPrice(decimal currentPrice)

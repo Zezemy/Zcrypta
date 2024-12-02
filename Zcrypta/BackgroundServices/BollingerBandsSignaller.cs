@@ -14,56 +14,62 @@ using Zcrypta.Entities.Enums;
 
 namespace Zcrypta.BackgroundServices
 {
-	internal sealed class BollingerBandsSignaller(
-		IServiceScopeFactory serviceScopeFactory,
-		IHubContext<BollingerBandsFeedHub, ISignallerClientContract> hubContext,
-		IOptions<BollingerBandsWorkerOptions> options,
-		ILogger<BollingerBandsSignaller> logger,
-		IBinanceRestClient restClient)
-		: BackgroundService
-	{
-		private readonly Random _random = new();
-		private readonly BollingerBandsWorkerOptions _options = options.Value;
+    internal sealed class BollingerBandsSignaller(
+        SignalTickerManager signalTickerManager,
+        IServiceScopeFactory serviceScopeFactory,
+        IHubContext<TradingSignalSenderHub, ISignallerClientContract> hubContext,
+        IOptions<BollingerBandsWorkerOptions> options,
+        ILogger<BollingerBandsSignaller> logger,
+        IBinanceRestClient restClient)
+        : BackgroundService
+    {
+        private readonly Random _random = new();
+        private readonly BollingerBandsWorkerOptions _options = options.Value;
 
-		protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-		{
-			while (!stoppingToken.IsCancellationRequested)
-			{
-				await UpdateStockPrices();
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                await UpdateStockPrices();
 
-				await Task.Delay(_options.WorkInterval, stoppingToken);
-			}
-		}
+                await Task.Delay(_options.WorkInterval, stoppingToken);
+            }
+        }
 
-		private async Task UpdateStockPrices()
-		{
-			var ticker = _options.Ticker;
-			var kLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, Binance.Net.Enums.KlineInterval.OneMinute, limit:20);
-			var closePricesLongList = kLines.Data.TakeLast(20).Select(x => x.ClosePrice);
-			var latestCloseTime = kLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
-			//DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
-			//DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
-			TradingSignal signal = new TradingSignal();
-			signal.SignalType = BollingerBandsSignal(closePricesLongList.ToList());
-			signal.Symbol = ticker;
-			signal.DateTime = latestCloseTime;
+        private async Task UpdateStockPrices()
+        {
+            foreach (string ticker in signalTickerManager.GetAllTickers())
+            {
+                //var ticker = _options.Ticker;
+                var kLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, Binance.Net.Enums.KlineInterval.OneMinute, limit: 20);
+                var closePricesLongList = kLines.Data.TakeLast(20).Select(x => x.ClosePrice);
+                var latestCloseTime = kLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
+                //DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
+                //DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
+                TradingSignal signal = new TradingSignal();
+                signal.SignalType = BollingerBandsSignal(closePricesLongList.ToList());
+                signal.Symbol = ticker;
+                signal.DateTime = latestCloseTime;
+                signal.StrategyType = StrategyTypes.BollingerBands;
+                signal.Interval = KLineIntervals.OneMinute;
 
-			//await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
+                //await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
 
-			await hubContext.Clients.Group(ticker).ReceiveSignalUpdate(signal);
+                await hubContext.Clients.Group(ticker + StrategyTypes.BollingerBands).ReceiveSignalUpdate(signal);
 
-			logger.LogInformation("Updated {ticker} signal to {signal}", ticker, signal);
-		}
+                logger.LogInformation("Updated {ticker} signal to {signal}", ticker, signal);
+            }
+        }
 
-		private decimal CalculateNewPrice(decimal currentPrice)
-		{
-			double change = 0.02;
-			decimal priceFactor = (decimal)(_random.NextDouble() * change * 2 - change);
-			decimal priceChange = currentPrice * priceFactor;
-			decimal newPrice = Math.Max(0, currentPrice + priceChange);
-			newPrice = Math.Round(newPrice, 2);
-			return newPrice;
-		}
+        private decimal CalculateNewPrice(decimal currentPrice)
+        {
+            double change = 0.02;
+            decimal priceFactor = (decimal)(_random.NextDouble() * change * 2 - change);
+            decimal priceChange = currentPrice * priceFactor;
+            decimal newPrice = Math.Max(0, currentPrice + priceChange);
+            newPrice = Math.Round(newPrice, 2);
+            return newPrice;
+        }
 
         // 4. Bollinger Bands
         public static SignalTypes BollingerBandsSignal(List<decimal> prices, int period = 20, decimal standardDeviations = 2)

@@ -2,6 +2,7 @@
 @rendermode InteractiveAuto
 @using Microsoft.AspNetCore.SignalR.Client
 @using Zcrypta.Entities.Dtos
+@using Zcrypta.Entities.Enums
 @inject IConfiguration Configuration
 @implements IAsyncDisposable
 
@@ -18,7 +19,34 @@ else
 
         @* <MudButton Class="ms-4" OnClick="() =>JoinTicker(tickerInput)" Disabled="@(!IsConnected)" Variant="Variant.Filled" Color="Color.Primary">Join to Ticker</MudButton> *@
 
-        @if (maSignals.Count == 0)
+        <MudTable Items="signals" Striped=true Filter="new Func<TradingSignal,bool>(FilterFunc1)" @bind-SelectedItem="selectedItem1">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Signals</MudText>
+                <MudSpacer />
+                <MudTextField @bind-Value="searchString1" Placeholder="Search"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                              IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Symbol</MudTh>
+                <MudTh>Strategy Type</MudTh>
+                <MudTh>Signal Type</MudTh>
+                <MudTh>Interval</MudTh>
+                <MudTh>Date Time</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Symbol">@context.Symbol</MudTd>
+                <MudTd DataLabel="StrategyType">@context.StrategyType</MudTd>
+                <MudTd DataLabel="SignalType">@context.SignalType</MudTd>
+                <MudTd DataLabel="Interval">@context.Interval</MudTd>
+                <MudTd DataLabel="DateTime">@context.DateTime</MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+
+        @if (signals.Where(x => x.StrategyType == StrategyTypes.MaCrossover).Count() == 0)
         {
             <p><em>Ma Signals Loading...</em></p>
         }
@@ -26,14 +54,14 @@ else
         {
             <div class="ms-4 flex-grow-1">
                 <ul id="signalList">
-                    @foreach (var signal in maSignals)
+                    @foreach (var signal in signals.Where(x => x.StrategyType == StrategyTypes.MaCrossover))
                     {
-                        <li>@signal.Value.Symbol : @signal.Value.SignalType : @signal.Value.DateTime</li>
+                        <li>@signal.Symbol : @signal.SignalType : @signal.DateTime</li>
                     }
                 </ul>
             </div>
         }
-        @if (rsiSignals.Count == 0)
+        @if (signals.Where(x => x.StrategyType == StrategyTypes.Rsi).Count() == 0)
         {
             <p><em>Rsi Signals Loading...</em></p>
         }
@@ -41,14 +69,14 @@ else
         {
             <div class="ms-4 flex-grow-1">
                 <ul id="signalList">
-                    @foreach (var signal in rsiSignals)
+                    @foreach (var signal in signals.Where(x => x.StrategyType == StrategyTypes.Rsi))
                     {
-                        <li>@signal.Value.Symbol : @signal.Value.SignalType : @signal.Value.DateTime</li>
+                        <li>@signal.Symbol : @signal.SignalType : @signal.DateTime</li>
                     }
                 </ul>
             </div>
         }
-        @if (macdSignals.Count == 0)
+        @if (signals.Where(x => x.StrategyType == StrategyTypes.Macd).Count() == 0)
         {
             <p><em>Macd Signals Loading...</em></p>
         }
@@ -56,14 +84,14 @@ else
         {
             <div class="ms-4 flex-grow-1">
                 <ul id="signalList">
-                    @foreach (var signal in macdSignals)
+                    @foreach (var signal in signals.Where(x => x.StrategyType == StrategyTypes.Macd))
                     {
-                        <li>@signal.Value.Symbol : @signal.Value.SignalType : @signal.Value.DateTime</li>
+                        <li>@signal.Symbol : @signal.SignalType : @signal.DateTime</li>
                     }
                 </ul>
             </div>
         }
-        @if (bollingerBandsSignals.Count == 0)
+        @if (signals.Where(x => x.StrategyType == StrategyTypes.BollingerBands).Count() == 0)
         {
             <p><em>Bollinger Bands Signals Loading...</em></p>
         }
@@ -71,14 +99,14 @@ else
         {
             <div class="ms-4 flex-grow-1">
                 <ul id="signalList">
-                    @foreach (var signal in bollingerBandsSignals)
+                    @foreach (var signal in signals.Where(x => x.StrategyType == StrategyTypes.BollingerBands))
                     {
-                        <li>@signal.Value.Symbol : @signal.Value.SignalType : @signal.Value.DateTime</li>
+                        <li>@signal.Symbol : @signal.SignalType : @signal.DateTime</li>
                     }
                 </ul>
             </div>
         }
-        @if (stochasticOscillatorSignals.Count == 0)
+        @if (signals.Where(x => x.StrategyType == StrategyTypes.StochasticOscillator).Count() == 0)
         {
             <p><em>Stochastic Oscillator Signals Loading...</em></p>
         }
@@ -86,9 +114,9 @@ else
         {
             <div class="ms-4 flex-grow-1">
                 <ul id="signalList">
-                    @foreach (var signal in stochasticOscillatorSignals)
+                    @foreach (var signal in signals.Where(x => x.StrategyType == StrategyTypes.StochasticOscillator))
                     {
-                        <li>@signal.Value.Symbol : @signal.Value.SignalType : @signal.Value.DateTime</li>
+                        <li>@signal.Symbol : @signal.SignalType : @signal.DateTime</li>
                     }
                 </ul>
             </div>
@@ -97,116 +125,87 @@ else
 }
 
 @code {
-    private HubConnection? maHubConnection, rsiHubConnection, macdHubConnection, bollingerBandsHubConnection, 
-    stochasticOscillatorHubConnection;
-    private Dictionary<string, TradingSignal> maSignals = [];
-    private Dictionary<string, TradingSignal> rsiSignals = [];
-    private Dictionary<string, TradingSignal> macdSignals = [];
-    private Dictionary<string, TradingSignal> bollingerBandsSignals = [];
-    private Dictionary<string, TradingSignal> stochasticOscillatorSignals = [];
+    private HubConnection? tradingSignalSenderHubConnection;
+    private List<TradingSignal> signals = new List<TradingSignal>();
     private string? tickerInput;
 
     protected override async Task OnInitializedAsync()
     {
-        maHubConnection = new HubConnectionBuilder()
-            .WithUrl(Configuration["BackendUrl"] + "/ma-hub")
-            .Build();
-        rsiHubConnection = new HubConnectionBuilder()
-            .WithUrl(Configuration["BackendUrl"] + "/rsi-hub")
-            .Build();
-        macdHubConnection = new HubConnectionBuilder()
-            .WithUrl(Configuration["BackendUrl"] + "/macd-hub")
-            .Build();
-        bollingerBandsHubConnection = new HubConnectionBuilder()
-            .WithUrl(Configuration["BackendUrl"] + "/bollinger-bands-hub")
-            .Build();
-        stochasticOscillatorHubConnection = new HubConnectionBuilder()
-            .WithUrl(Configuration["BackendUrl"] + "/stochastic-oscillator-hub")
-            .Build();
-        await SetHubConnection(maHubConnection, maSignals);
-        await SetHubConnection(rsiHubConnection, rsiSignals);
-        await SetHubConnection(macdHubConnection, macdSignals);
-        await SetHubConnection(bollingerBandsHubConnection, bollingerBandsSignals);
-        await SetHubConnection(stochasticOscillatorHubConnection, stochasticOscillatorSignals);
+        tradingSignalSenderHubConnection = new HubConnectionBuilder()
+        .WithUrl(Configuration["BackendUrl"] + "/trading-signal-sender-hub")
+        .Build();
+        await SetHubConnection(tradingSignalSenderHubConnection, signals);
 
-        List<string> defaultTickers = new List<string> { "BTCUSDT", "ETHUSDT", "SUIUSDT", "ACAUSDT", "AIUSDT"};
-
-        foreach (var ticker in defaultTickers)
-        {
-            await JoinTicker(ticker, maHubConnection);
-        }
-
-        foreach (var ticker in defaultTickers)
-        {
-            await JoinTicker(ticker, rsiHubConnection);
-        }
-
-        foreach (var ticker in defaultTickers)
-        {
-            await JoinTicker(ticker, macdHubConnection);
-        }
-
-        foreach (var ticker in defaultTickers)
-        {
-            await JoinTicker(ticker, bollingerBandsHubConnection);
-        }
-
-        foreach (var ticker in defaultTickers)
-        {
-            await JoinTicker(ticker, stochasticOscillatorHubConnection);
-        }
+        await JoinDefaultTickers(StrategyTypes.MaCrossover);
+        await JoinDefaultTickers(StrategyTypes.Macd);
+        await JoinDefaultTickers(StrategyTypes.Rsi);
+        await JoinDefaultTickers(StrategyTypes.BollingerBands);
+        await JoinDefaultTickers(StrategyTypes.StochasticOscillator);
     }
 
-    private async Task JoinTicker(string? ticker, HubConnection hubConnection)
+    private async Task JoinTicker(string? ticker, StrategyTypes strategyType, HubConnection hubConnection)
     {
         if (hubConnection is not null)
         {
-            await hubConnection.SendAsync("JoinStockGroup", ticker);
+            await hubConnection.SendAsync("JoinStockGroup", ticker, strategyType);
+        }
+    }
+
+    public async Task JoinDefaultTickers(StrategyTypes strategyType)
+    {
+        List<string> defaultTickers = new List<string> { "BTCUSDT", "ETHUSDT", "SUIUSDT", "ACAUSDT", "AIUSDT" };
+        foreach (var ticker in defaultTickers)
+        {
+            await JoinTicker(ticker, strategyType, tradingSignalSenderHubConnection);
         }
     }
 
     public bool IsConnected =>
-        maHubConnection?.State == HubConnectionState.Connected;
+        tradingSignalSenderHubConnection?.State == HubConnectionState.Connected;
 
     public async ValueTask DisposeAsync()
     {
-        if (maHubConnection is not null)
+        if (tradingSignalSenderHubConnection is not null)
         {
-            await maHubConnection.DisposeAsync();
-        }
-        if (rsiHubConnection is not null)
-        {
-            await rsiHubConnection.DisposeAsync();
-        }
-        if (macdHubConnection is not null)
-        {
-            await macdHubConnection.DisposeAsync();
-        }
-        if (bollingerBandsHubConnection is not null)
-        {
-            await bollingerBandsHubConnection.DisposeAsync();
-        }
-        if (stochasticOscillatorHubConnection is not null)
-        {
-            await stochasticOscillatorHubConnection.DisposeAsync();
+            await tradingSignalSenderHubConnection.DisposeAsync();
         }
     }
 
-    protected async Task SetHubConnection(HubConnection hubConnection, Dictionary<string, TradingSignal> signals)
+    protected async Task SetHubConnection(HubConnection hubConnection, List<TradingSignal> signals)
     {
         hubConnection.On<TradingSignal>("ReceiveSignalUpdate", (signal) =>
         {
-            if (!signals.ContainsKey(signal.Symbol))
+            if (!signals.Any(x => x.Symbol == signal.Symbol && x.StrategyType == signal.StrategyType))
             {
-                signals.Add(signal.Symbol, signal);
+                signals.Add(signal);
             }
             else
             {
-                signals[signal.Symbol] = signal;
+                var signalInList = signals.Where(x => x.Symbol == signal.Symbol && x.StrategyType == signal.StrategyType).First();
+                var index = signals.IndexOf(signalInList);
+                signals[index] = signal;
             }
             InvokeAsync(StateHasChanged);
         });
 
         await hubConnection.StartAsync();
+    }
+
+    private string searchString1 = "";
+    private TradingSignal selectedItem1 = null;
+    private HashSet<TradingSignal> selectedItems = new HashSet<TradingSignal>();
+    private bool FilterFunc1(TradingSignal signal) => FilterFunc(signal, searchString1);
+
+    private bool FilterFunc(TradingSignal signal, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (signal.Symbol.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (signal.SignalType.ToString().Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (signal.Interval.ToString().Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
     }
 }

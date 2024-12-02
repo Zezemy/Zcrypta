@@ -78,6 +78,7 @@ builder.Services.AddResponseCompression(opts =>
 builder.Services.AddBinance();
 
 builder.Services.AddSingleton<ActiveTickerManager>();
+builder.Services.AddSingleton<SignalTickerManager>();
 builder.Services.AddHostedService<StocksFeedUpdater>();
 builder.Services.AddHostedService<MaCrossoverSignaller>();
 builder.Services.AddHostedService<RsiSignaller>();
@@ -145,11 +146,7 @@ app.UseAuthorization();
 app.MapControllers();
 //app.MapHub<ChatHub>("/chathub");
 app.MapHub<StocksFeedHub>("/pricehub");
-app.MapHub<MaCrossoverFeedHub>("/ma-hub");
-app.MapHub<RsiFeedHub>("/rsi-hub");
-app.MapHub<MacdFeedHub>("/macd-hub");
-app.MapHub<BollingerBandsFeedHub>("/bollinger-bands-hub");
-app.MapHub<StochasticOscillatorFeedHub>("/stochastic-oscillator-hub");
+app.MapHub<TradingSignalSenderHub>("/trading-signal-sender-hub");
 
 app.MapIdentityApi<User>();
 //app.UseAntiforgery();

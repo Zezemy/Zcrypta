@@ -15,8 +15,9 @@ using Zcrypta.Entities.Enums;
 namespace Zcrypta.BackgroundServices
 {
 	internal sealed class MacdSignaller(
-		IServiceScopeFactory serviceScopeFactory,
-		IHubContext<MacdFeedHub, ISignallerClientContract> hubContext,
+        SignalTickerManager signalTickerManager,
+        IServiceScopeFactory serviceScopeFactory,
+		IHubContext<TradingSignalSenderHub, ISignallerClientContract> hubContext,
 		IOptions<MacdWorkerOptions> options,
 		ILogger<MacdSignaller> logger,
 		IBinanceRestClient restClient)
@@ -37,22 +38,27 @@ namespace Zcrypta.BackgroundServices
 
 		private async Task UpdateStockPrices()
 		{
-			var ticker = _options.Ticker;
-			var kLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, Binance.Net.Enums.KlineInterval.OneMinute, limit:20);
-			var closePricesLongList = kLines.Data.TakeLast(20).Select(x => x.ClosePrice);
-			var latestCloseTime = kLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
-			//DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
-			//DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
-			TradingSignal signal = new TradingSignal();
-			signal.SignalType = MACDSignal(closePricesLongList.ToList());
-			signal.Symbol = ticker;
-			signal.DateTime = latestCloseTime;
+			foreach (string ticker in signalTickerManager.GetAllTickers())
+			{
+				//var ticker = _options.Ticker;
+				var kLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, Binance.Net.Enums.KlineInterval.OneMinute, limit: 20);
+				var closePricesLongList = kLines.Data.TakeLast(20).Select(x => x.ClosePrice);
+				var latestCloseTime = kLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
+				//DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
+				//DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
+				TradingSignal signal = new TradingSignal();
+				signal.SignalType = MACDSignal(closePricesLongList.ToList());
+				signal.Symbol = ticker;
+				signal.DateTime = latestCloseTime;
+				signal.StrategyType = StrategyTypes.Macd;
+                signal.Interval = KLineIntervals.OneMinute;
 
-			//await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
+                //await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
 
-			await hubContext.Clients.Group(ticker).ReceiveSignalUpdate(signal);
+                await hubContext.Clients.Group(ticker + StrategyTypes.Macd).ReceiveSignalUpdate(signal);
 
-			logger.LogInformation("Updated {ticker} signal to {signal}", ticker, signal);
+				logger.LogInformation("Updated {ticker} signal to {signal}", ticker, signal);
+			}
 		}
 
 		private decimal CalculateNewPrice(decimal currentPrice)
