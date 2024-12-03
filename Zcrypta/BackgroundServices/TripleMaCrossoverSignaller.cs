@@ -14,17 +14,17 @@ using Zcrypta.Entities.Enums;
 
 namespace Zcrypta.BackgroundServices
 {
-    internal sealed class MaCrossoverSignaller(
+    internal sealed class TripleMaCrossoverSignaller(
         SignalTickerManager signalTickerManager,
         IServiceScopeFactory serviceScopeFactory,
         IHubContext<TradingSignalSenderHub, ISignallerClientContract> hubContext,
-        IOptions<MaCrossoverWorkerOptions> options,
-        ILogger<MaCrossoverSignaller> logger,
+        IOptions<TripleMaCrossoverWorkerOptions> options,
+        ILogger<TripleMaCrossoverSignaller> logger,
         IBinanceRestClient restClient)
         : BackgroundService
     {
         private readonly Random _random = new();
-        private readonly MaCrossoverWorkerOptions _options = options.Value;
+        private readonly TripleMaCrossoverWorkerOptions _options = options.Value;
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -47,30 +47,31 @@ namespace Zcrypta.BackgroundServices
                 //DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
                 //DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
                 TradingSignal signal = new TradingSignal();
-                signal.SignalType = MovingAverageCrossover(closePricesLongList);
+                signal.SignalType = TripleMovingAverageCrossover(closePricesLongList);
                 signal.Symbol = ticker;
                 signal.DateTime = latestCloseTime;
-                signal.StrategyType = StrategyTypes.MaCrossover;
+                signal.StrategyType = StrategyTypes.TripleMaCrossover;
                 signal.Interval = KLineIntervals.OneMinute;
 
                 //await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
 
-                await hubContext.Clients.Group(ticker + StrategyTypes.MaCrossover).ReceiveSignalUpdate(signal);
+                await hubContext.Clients.Group(ticker + StrategyTypes.TripleMaCrossover).ReceiveSignalUpdate(signal);
 
                 logger.LogInformation("Updated {ticker} signal to {signal}", ticker, signal);
             }
         }
 
-        // 1. Simple Moving Average Crossover
-        public static SignalTypes MovingAverageCrossover(IEnumerable<decimal> prices, int shortPeriod = 10, int longPeriod = 20)
+        // 6. Triple Moving Average Crossover
+        public static SignalTypes TripleMovingAverageCrossover(IEnumerable<decimal> prices, int shortPeriod = 5, int mediumPeriod = 10, int longPeriod = 20)
         {
             if (prices.Count() < longPeriod) return SignalTypes.Hold;
 
             var shortMA = prices.TakeLast(shortPeriod).Average();
+            var mediumMA = prices.TakeLast(mediumPeriod).Average();
             var longMA = prices.TakeLast(longPeriod).Average();
 
-            if (shortMA > longMA) return SignalTypes.Buy;
-            if (shortMA < longMA) return SignalTypes.Sell;
+            if (shortMA > mediumMA && mediumMA > longMA) return SignalTypes.Buy;
+            if (shortMA < mediumMA && mediumMA < longMA) return SignalTypes.Sell;
             return SignalTypes.Hold;
         }
     }

@@ -37,32 +37,20 @@ namespace Zcrypta.BackgroundServices
         {
             foreach (string ticker in activeTickerManager.GetAllTickers())
             {
-                var price = await restClient.SpotApi.ExchangeData.GetPriceAsync(ticker);
-                if (price == null)
+                var priceData = await restClient.SpotApi.ExchangeData.GetPriceAsync(ticker);
+                if (priceData == null)
                 {
                     continue;
                 }
 
-                decimal newPrice = CalculateNewPrice(price.Data.Price);
-
-                var update = new CurrentPrice() { Price = newPrice, Symbol = ticker };
+                var update = new CurrentPrice() { Price = priceData.Data.Price, Symbol = ticker };
 
                 //await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
 
                 await hubContext.Clients.Group(ticker).ReceiveStockPriceUpdate(update);
 
-                logger.LogInformation("Updated {Ticker} price to {Price}", ticker, newPrice);
+                logger.LogInformation("Updated {Ticker} price to {Price}", ticker, priceData);
             }
-        }
-
-        private decimal CalculateNewPrice(decimal currentPrice)
-        {
-            double change = _options.MaxPercentageChange;
-            decimal priceFactor = (decimal)(_random.NextDouble() * change * 2 - change);
-            decimal priceChange = currentPrice * priceFactor;
-            decimal newPrice = Math.Max(0, currentPrice + priceChange);
-            newPrice = Math.Round(newPrice, 2);
-            return newPrice;
         }
     }
 }

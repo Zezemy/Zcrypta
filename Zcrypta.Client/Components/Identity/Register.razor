@@ -2,6 +2,8 @@
 @layout EmptyLayout
 @using Zcrypta.Client
 @using Zcrypta.Entities.Models
+@using System.Text.RegularExpressions
+@using System.ComponentModel.DataAnnotations
 @inject NavigationManager Navigation
 @inject IAccountManagement Acct
 @inject ISnackbar Snackbar
@@ -27,7 +29,8 @@ else
                 <EditForm EditContext="@editContext" Class="pa-3">
                     <MudCard>
                         <MudCardContent>
-                            <MudTextField @bind-Value="email" Label="Enter your email address" Variant="Variant.Outlined" Class=""></MudTextField>
+                            <MudTextField @bind-Value="email" Label="Enter your email address" Variant="Variant.Outlined" Required="true" RequiredError="Email is required!"
+                                          Validation="@(new EmailAddressAttribute() {ErrorMessage = "The email address is invalid"})"></MudTextField>
                             <MudTextField @bind-Value="password" Label="Password" Variant="Variant.Outlined"
                                           InputType="@PasswordInput" Adornment="Adornment.End" AdornmentIcon="@PasswordInputIcon"
                                           OnAdornmentClick="ButtonTestclick" AdornmentAriaLabel="Show Password" />
@@ -138,7 +141,7 @@ else
 
         void SetErrorAndDisplayMessage(string message)
         {
-            errors = true;;
+            errors = true;
             errorList = [message];
             SnackbarMessage(message);
         }
@@ -165,6 +168,10 @@ else
         {
             errors = true;
             errorList = result.ErrorList;
+            foreach (var item in result.ErrorList)
+            {
+                SetErrorAndDisplayMessage(item);
+            }
         }
     }
 }

@@ -11,20 +11,21 @@ using Zcrypta.Entities.BackgroundServices;
 using Zcrypta.Entities.Strategies.Options;
 using Zcrypta.Extensions;
 using Zcrypta.Entities.Enums;
+using Binance.Net.Interfaces;
 
 namespace Zcrypta.BackgroundServices
 {
-    internal sealed class MaCrossoverSignaller(
+    internal sealed class PriceChannelSignaller(
         SignalTickerManager signalTickerManager,
         IServiceScopeFactory serviceScopeFactory,
         IHubContext<TradingSignalSenderHub, ISignallerClientContract> hubContext,
-        IOptions<MaCrossoverWorkerOptions> options,
-        ILogger<MaCrossoverSignaller> logger,
+        IOptions<PriceChannelWorkerOptions> options,
+        ILogger<PriceChannelSignaller> logger,
         IBinanceRestClient restClient)
         : BackgroundService
     {
         private readonly Random _random = new();
-        private readonly MaCrossoverWorkerOptions _options = options.Value;
+        private readonly PriceChannelWorkerOptions _options = options.Value;
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -41,36 +42,38 @@ namespace Zcrypta.BackgroundServices
             foreach (string ticker in signalTickerManager.GetAllTickers())
             {
                 //var ticker = _options.Ticker;
-                var kLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, Binance.Net.Enums.KlineInterval.OneMinute, limit: 20);
-                var closePricesLongList = kLines.Data.TakeLast(20).Select(x => x.ClosePrice);
-                var latestCloseTime = kLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
+                var binanceKLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, Binance.Net.Enums.KlineInterval.OneMinute, limit: 20);
+                var kLines = binanceKLines.Data.TakeLast(20).Select(x => x.ConvertToKLine());
+                var latestCloseTime = binanceKLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
                 //DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
                 //DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
                 TradingSignal signal = new TradingSignal();
-                signal.SignalType = MovingAverageCrossover(closePricesLongList);
+                signal.SignalType = PriceChannelSignal(kLines);
                 signal.Symbol = ticker;
                 signal.DateTime = latestCloseTime;
-                signal.StrategyType = StrategyTypes.MaCrossover;
+                signal.StrategyType = StrategyTypes.PriceChannel;
                 signal.Interval = KLineIntervals.OneMinute;
 
                 //await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
 
-                await hubContext.Clients.Group(ticker + StrategyTypes.MaCrossover).ReceiveSignalUpdate(signal);
+                await hubContext.Clients.Group(ticker + StrategyTypes.PriceChannel).ReceiveSignalUpdate(signal);
 
                 logger.LogInformation("Updated {ticker} signal to {signal}", ticker, signal);
             }
         }
 
-        // 1. Simple Moving Average Crossover
-        public static SignalTypes MovingAverageCrossover(IEnumerable<decimal> prices, int shortPeriod = 10, int longPeriod = 20)
+        // 7. Price Channel Strategy
+        public static SignalTypes PriceChannelSignal(IEnumerable<IKLine> prices, int period = 20)
         {
-            if (prices.Count() < longPeriod) return SignalTypes.Hold;
+            if (prices.Count() < period) return SignalTypes.Hold;
 
-            var shortMA = prices.TakeLast(shortPeriod).Average();
-            var longMA = prices.TakeLast(longPeriod).Average();
+            var recentPrices = prices.TakeLast(period).ToList();
+            var upperChannel = recentPrices.Max(p => p.HighPrice);
+            var lowerChannel = recentPrices.Min(p => p.LowPrice);
+            var currentPrice = prices.Last().ClosePrice;
 
-            if (shortMA > longMA) return SignalTypes.Buy;
-            if (shortMA < longMA) return SignalTypes.Sell;
+            if (currentPrice >= upperChannel) return SignalTypes.Sell;
+            if (currentPrice <= lowerChannel) return SignalTypes.Buy;
             return SignalTypes.Hold;
         }
     }

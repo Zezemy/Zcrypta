@@ -85,6 +85,11 @@ builder.Services.AddHostedService<RsiSignaller>();
 builder.Services.AddHostedService<MacdSignaller>();
 builder.Services.AddHostedService<BollingerBandsSignaller>();
 builder.Services.AddHostedService<StochasticOscillatorSignaller>();
+builder.Services.AddHostedService<TripleMaCrossoverSignaller>();
+builder.Services.AddHostedService<PriceChannelSignaller>();
+builder.Services.AddHostedService<VolumePriceTrendSignaller>();
+builder.Services.AddHostedService<MomentumSignaller>();
+builder.Services.AddHostedService<ExponentialMaCrossoverWithVolumeSignaller>();
 
 builder.Services.Configure<UpdateOptions>(builder.Configuration.GetSection("PriceUpdateOptions"));
 

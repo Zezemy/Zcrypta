@@ -14,114 +14,33 @@
 }
 else
 {
-    <div class="d-flex flex-grow-1 gap-4">
-        @* <MudTextField @bind-Value="tickerInput" Label="Enter a ticker" Variant="Variant.Outlined" Class=""></MudTextField> *@
+    @* <MudTextField @bind-Value="tickerInput" Label="Enter a ticker" Variant="Variant.Outlined" Class=""></MudTextField> *@
 
-        @* <MudButton Class="ms-4" OnClick="() =>JoinTicker(tickerInput)" Disabled="@(!IsConnected)" Variant="Variant.Filled" Color="Color.Primary">Join to Ticker</MudButton> *@
+    @* <MudButton Class="ms-4" OnClick="() =>JoinTicker(tickerInput)" Disabled="@(!IsConnected)" Variant="Variant.Filled" Color="Color.Primary">Join to Ticker</MudButton> *@
 
-        <MudTable Items="signals" Striped=true Filter="new Func<TradingSignal,bool>(FilterFunc1)" @bind-SelectedItem="selectedItem1">
-            <ToolBarContent>
-                <MudText Typo="Typo.h6">Signals</MudText>
-                <MudSpacer />
-                <MudTextField @bind-Value="searchString1" Placeholder="Search"
-                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
-                              IconSize="Size.Medium" Class="mt-0"></MudTextField>
-            </ToolBarContent>
-            <HeaderContent>
-                <MudTh>Symbol</MudTh>
-                <MudTh>Strategy Type</MudTh>
-                <MudTh>Signal Type</MudTh>
-                <MudTh>Interval</MudTh>
-                <MudTh>Date Time</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="Symbol">@context.Symbol</MudTd>
-                <MudTd DataLabel="StrategyType">@context.StrategyType</MudTd>
-                <MudTd DataLabel="SignalType">@context.SignalType</MudTd>
-                <MudTd DataLabel="Interval">@context.Interval</MudTd>
-                <MudTd DataLabel="DateTime">@context.DateTime</MudTd>
-            </RowTemplate>
-            <PagerContent>
-                <MudTablePager />
-            </PagerContent>
-        </MudTable>
-
-        @if (signals.Where(x => x.StrategyType == StrategyTypes.MaCrossover).Count() == 0)
-        {
-            <p><em>Ma Signals Loading...</em></p>
-        }
-        else
-        {
-            <div class="ms-4 flex-grow-1">
-                <ul id="signalList">
-                    @foreach (var signal in signals.Where(x => x.StrategyType == StrategyTypes.MaCrossover))
-                    {
-                        <li>@signal.Symbol : @signal.SignalType : @signal.DateTime</li>
-                    }
-                </ul>
-            </div>
-        }
-        @if (signals.Where(x => x.StrategyType == StrategyTypes.Rsi).Count() == 0)
-        {
-            <p><em>Rsi Signals Loading...</em></p>
-        }
-        else
-        {
-            <div class="ms-4 flex-grow-1">
-                <ul id="signalList">
-                    @foreach (var signal in signals.Where(x => x.StrategyType == StrategyTypes.Rsi))
-                    {
-                        <li>@signal.Symbol : @signal.SignalType : @signal.DateTime</li>
-                    }
-                </ul>
-            </div>
-        }
-        @if (signals.Where(x => x.StrategyType == StrategyTypes.Macd).Count() == 0)
-        {
-            <p><em>Macd Signals Loading...</em></p>
-        }
-        else
-        {
-            <div class="ms-4 flex-grow-1">
-                <ul id="signalList">
-                    @foreach (var signal in signals.Where(x => x.StrategyType == StrategyTypes.Macd))
-                    {
-                        <li>@signal.Symbol : @signal.SignalType : @signal.DateTime</li>
-                    }
-                </ul>
-            </div>
-        }
-        @if (signals.Where(x => x.StrategyType == StrategyTypes.BollingerBands).Count() == 0)
-        {
-            <p><em>Bollinger Bands Signals Loading...</em></p>
-        }
-        else
-        {
-            <div class="ms-4 flex-grow-1">
-                <ul id="signalList">
-                    @foreach (var signal in signals.Where(x => x.StrategyType == StrategyTypes.BollingerBands))
-                    {
-                        <li>@signal.Symbol : @signal.SignalType : @signal.DateTime</li>
-                    }
-                </ul>
-            </div>
-        }
-        @if (signals.Where(x => x.StrategyType == StrategyTypes.StochasticOscillator).Count() == 0)
-        {
-            <p><em>Stochastic Oscillator Signals Loading...</em></p>
-        }
-        else
-        {
-            <div class="ms-4 flex-grow-1">
-                <ul id="signalList">
-                    @foreach (var signal in signals.Where(x => x.StrategyType == StrategyTypes.StochasticOscillator))
-                    {
-                        <li>@signal.Symbol : @signal.SignalType : @signal.DateTime</li>
-                    }
-                </ul>
-            </div>
-        }
-    </div>
+    <MudTable Items="signals" Dense=true Filter="new Func<TradingSignal,bool>(FilterFunc1)" @bind-SelectedItem="selectedItem1">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Signals</MudText>
+            <MudSpacer />
+            <MudTextField @bind-Value="searchString1" Placeholder="Search"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                          IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh>Symbol</MudTh>
+            <MudTh>Strategy Type</MudTh>
+            <MudTh>Signal Type</MudTh>
+            <MudTh>Interval</MudTh>
+            <MudTh>Date Time</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Symbol">@context.Symbol</MudTd>
+            <MudTd DataLabel="StrategyType">@context.StrategyType</MudTd>
+            <MudTd DataLabel="SignalType" Class="@(context.SignalType==SignalTypes.Buy? "pa-4 mud-theme-success" :(context.SignalType==SignalTypes.Sell? "pa-4 mud-theme-error": "pa-4 mud-background-gray"))">@context.SignalType</MudTd>
+            <MudTd DataLabel="Interval">@context.Interval</MudTd>
+            <MudTd DataLabel="DateTime">@context.DateTime</MudTd>
+        </RowTemplate>
+    </MudTable>
 }
 
 @code {
@@ -141,6 +60,11 @@ else
         await JoinDefaultTickers(StrategyTypes.Rsi);
         await JoinDefaultTickers(StrategyTypes.BollingerBands);
         await JoinDefaultTickers(StrategyTypes.StochasticOscillator);
+        await JoinDefaultTickers(StrategyTypes.TripleMaCrossover);
+        await JoinDefaultTickers(StrategyTypes.PriceChannel);
+        await JoinDefaultTickers(StrategyTypes.VolumePriceTrend);
+        await JoinDefaultTickers(StrategyTypes.Momentum);
+        await JoinDefaultTickers(StrategyTypes.ExponentialMaCrossoverWithVolume);
     }
 
     private async Task JoinTicker(string? ticker, StrategyTypes strategyType, HubConnection hubConnection)
@@ -153,7 +77,7 @@ else
 
     public async Task JoinDefaultTickers(StrategyTypes strategyType)
     {
-        List<string> defaultTickers = new List<string> { "BTCUSDT", "ETHUSDT", "SUIUSDT", "ACAUSDT", "AIUSDT" };
+        List<string> defaultTickers = new List<string> { "BTCUSDT", "ETHUSDT", "SUIUSDT", "ACAUSDT", "AIUSDT", "STRKUSDT", "ZKUSDT" };
         foreach (var ticker in defaultTickers)
         {
             await JoinTicker(ticker, strategyType, tradingSignalSenderHubConnection);

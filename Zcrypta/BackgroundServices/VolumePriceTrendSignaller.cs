@@ -14,17 +14,17 @@ using Zcrypta.Entities.Enums;
 
 namespace Zcrypta.BackgroundServices
 {
-	internal sealed class StochasticOscillatorSignaller(
+	internal sealed class VolumePriceTrendSignaller(
         SignalTickerManager signalTickerManager,
         IServiceScopeFactory serviceScopeFactory,
 		IHubContext<TradingSignalSenderHub, ISignallerClientContract> hubContext,
-		IOptions<StochasticOscillatorWorkerOptions> options,
-		ILogger<StochasticOscillatorSignaller> logger,
+		IOptions<VolumePriceTrendWorkerOptions> options,
+		ILogger<VolumePriceTrendSignaller> logger,
 		IBinanceRestClient restClient)
 		: BackgroundService
 	{
 		private readonly Random _random = new();
-		private readonly StochasticOscillatorWorkerOptions _options = options.Value;
+		private readonly VolumePriceTrendWorkerOptions _options = options.Value;
 
 		protected override async Task ExecuteAsync(CancellationToken stoppingToken)
 		{
@@ -42,40 +42,46 @@ namespace Zcrypta.BackgroundServices
 			{
 				//var ticker = _options.Ticker;
 				var binanceKLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, Binance.Net.Enums.KlineInterval.OneMinute, limit: 20);
-				var kLines = binanceKLines.Data.TakeLast(20).Select(x => x.ConvertToKLine());
+				var kLines = binanceKLines.Data.TakeLast(20).Select(x => x.ConvertToKLine()).ToList();
 				var latestCloseTime = binanceKLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
 				//DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
 				//DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
 				TradingSignal signal = new TradingSignal();
-				signal.SignalType = StochasticSignal(kLines);
+				signal.SignalType = VolumePriceTrendSignal(kLines);
 				signal.Symbol = ticker;
 				signal.DateTime = latestCloseTime;
-				signal.StrategyType = StrategyTypes.StochasticOscillator;
+				signal.StrategyType = StrategyTypes.VolumePriceTrend;
                 signal.Interval = KLineIntervals.OneMinute;
 
                 //await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
 
-                await hubContext.Clients.Group(ticker + StrategyTypes.StochasticOscillator).ReceiveSignalUpdate(signal);
+                await hubContext.Clients.Group(ticker + StrategyTypes.VolumePriceTrend).ReceiveSignalUpdate(signal);
 
 				logger.LogInformation("Updated {ticker} signal to {signal}", ticker, signal);
 			}
 		}
 
-        // 5. Stochastic Oscillator
-        public static SignalTypes StochasticSignal(IEnumerable<IKLine> prices, int period = 14, decimal overbought = 80, decimal oversold = 20)
+        // 8. Volume Price Trend
+        public static SignalTypes VolumePriceTrendSignal(List<IKLine> prices, int period = 14)
         {
-            if (prices.Count() < period) return SignalTypes.Hold;
+            if (prices.Count() < period + 1) return SignalTypes.Hold;
 
-            var recentPrices = prices.TakeLast(period).ToList();
-            var highestHigh = recentPrices.Max(p => p.HighPrice);
-            var lowestLow = recentPrices.Min(p => p.LowPrice);
+            var vpt = 0m;
+            for (int i = 1; i < prices.Count(); i++)
+            {
+                var priceChange = (prices[i].ClosePrice - prices[i - 1].ClosePrice) / prices[i - 1].ClosePrice;
+                vpt += priceChange * prices[i].Volume;
+            }
 
-            if (highestHigh - lowestLow == 0) return SignalTypes.Hold;
+            var previousVPT = 0m;
+            for (int i = 1; i < prices.Count() - 1; i++)
+            {
+                var priceChange = (prices[i].ClosePrice - prices[i - 1].ClosePrice) / prices[i - 1].ClosePrice;
+                previousVPT += priceChange * prices[i].Volume;
+            }
 
-            var k = ((prices.Last().ClosePrice - lowestLow) / (highestHigh - lowestLow)) * 100;
-
-            if (k < oversold) return SignalTypes.Buy;
-            if (k > overbought) return SignalTypes.Sell;
+            if (vpt > previousVPT) return SignalTypes.Buy;
+            if (vpt < previousVPT) return SignalTypes.Sell;
             return SignalTypes.Hold;
         }
     }
