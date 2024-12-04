@@ -49,7 +49,7 @@ namespace Zcrypta.BackgroundServices
 
                 await hubContext.Clients.Group(ticker).ReceiveStockPriceUpdate(update);
 
-                logger.LogInformation("Updated {Ticker} price to {Price}", ticker, priceData);
+                logger.LogInformation($"Updated {ticker} price to {priceData?.Data?.Price}");
             }
         }
     }

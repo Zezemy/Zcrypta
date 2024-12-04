@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System;
+using Zcrypta.Models;
 
 namespace Zcrypta.Context
 {
@@ -26,6 +27,27 @@ namespace Zcrypta.Context
             UserName = "zey@zcrypta.com"
         },
         ];
+
+        public static readonly IEnumerable<TradingPair> tradingPairs =
+        [
+            new TradingPair()
+        {
+            Base = "BTC",
+            Quote = "USDT"
+        }
+        ];
+
+        public static readonly IEnumerable<SignalStrategy> signalStrategies =
+        [
+            new SignalStrategy()
+        {
+            StrategyType = 0,
+            Interval = 60,
+            CreatedBy = "System",
+            CreateDate = DateTime.Now,
+        }
+        ];
+
 
         public static async Task InitializeAsync(IServiceProvider serviceProvider)
         {
@@ -69,6 +91,25 @@ namespace Zcrypta.Context
                     }
                 }
             }
+
+            long tradingPairId = 0;
+            foreach (var tradingPair in tradingPairs)
+            {
+                context.TradingPairs.Add(tradingPair);
+                await context.SaveChangesAsync();
+                tradingPairId = tradingPair.Id;
+            }
+
+            long strategyId = 0;
+            foreach (var signalStrategy in signalStrategies)
+            {
+                context.SignalStrategies.Add(signalStrategy);
+                await context.SaveChangesAsync();
+                strategyId = signalStrategy.Id;
+            }
+
+            var user2 = await userManager.FindByEmailAsync("zy@zcrypta.com");
+            context.UserSignalStrategies.Add(new UserSignalStrategy {  StrategyId = strategyId, TradingPairId = tradingPairId, UserId = user2.Id});
 
             await context.SaveChangesAsync();
         }
