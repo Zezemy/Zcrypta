@@ -80,6 +80,7 @@ builder.Services.AddBinance();
 builder.Services.AddSingleton<ActiveTickerManager>();
 builder.Services.AddSingleton<SignalTickerManager>();
 builder.Services.AddHostedService<StocksFeedUpdater>();
+
 builder.Services.AddHostedService<MaCrossoverSignaller>();
 builder.Services.AddHostedService<RsiSignaller>();
 builder.Services.AddHostedService<MacdSignaller>();

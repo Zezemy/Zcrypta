@@ -21,5 +21,14 @@ public partial class SignalStrategy
 
     public DateTime? UpdateDate { get; set; }
 
+    public string Properties { get; set; }
+
+    public bool IsPredefined { get; set; }
+
+    public long TradingPairId { get; set; }
+
     public virtual ICollection<UserSignalStrategy> UserSignalStrategies { get; set; } = new List<UserSignalStrategy>();
+
+    public virtual TradingPair TradingPair { get; set; }
+
 }

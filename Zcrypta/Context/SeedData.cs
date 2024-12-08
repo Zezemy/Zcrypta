@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System;
 using Zcrypta.Models;
+using Zcrypta.Entities.Strategies.Options;
+using Zcrypta.Migrations;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace Zcrypta.Context
 {
@@ -34,6 +37,16 @@ namespace Zcrypta.Context
         {
             Base = "BTC",
             Quote = "USDT"
+        },
+            new TradingPair()
+        {
+            Base = "ETH",
+            Quote = "USDT"
+        },
+            new TradingPair()
+        {
+            Base = "TRY",
+            Quote = "USDT"
         }
         ];
 
@@ -45,9 +58,34 @@ namespace Zcrypta.Context
             Interval = 60,
             CreatedBy = "System",
             CreateDate = DateTime.Now,
-        }
+            TradingPairId = 1,
+            Properties = Newtonsoft.Json.JsonConvert.SerializeObject(new MaCrossoverStrategyOptions(){
+                KLineInterval = Entities.Enums.KLineIntervals.OneMinute, LongPeriod=20, ShortPeriod =10, Ticker= "BTCUSDT"}),
+            IsPredefined = true,
+        },
+            new SignalStrategy()
+        {
+            StrategyType = 1,
+            Interval = 60,
+            CreatedBy = "System",
+            CreateDate = DateTime.Now,
+            TradingPairId = 2,
+            Properties = Newtonsoft.Json.JsonConvert.SerializeObject(new MacdStrategyOptions(){
+                KLineInterval = Entities.Enums.KLineIntervals.OneMinute, FastPeriod=12, SlowPeriod =26, SignalPeriod= 9, Ticker= "ETHUSDT"}),
+            IsPredefined = true,
+        },
+            new SignalStrategy()
+        {
+            StrategyType = 2,
+            Interval = 60,
+            CreatedBy = "System",
+            CreateDate = DateTime.Now,
+            TradingPairId = 3,
+            Properties = Newtonsoft.Json.JsonConvert.SerializeObject(new RsiStrategyOptions(){
+                KLineInterval = Entities.Enums.KLineIntervals.OneMinute, Period=14, Overbought =70, Oversold= 30, Ticker= "TRYUSDT"}),
+            IsPredefined = true,
+        },
         ];
-
 
         public static async Task InitializeAsync(IServiceProvider serviceProvider)
         {
@@ -77,7 +115,7 @@ namespace Zcrypta.Context
 
             foreach (var user in seedUsers)
             {
-                var hashed = password.HashPassword(user, "Passw0rd!");
+                var hashed = password.HashPassword(user, "admin");
                 user.PasswordHash = hashed;
                 await userStore.CreateAsync(user);
 
@@ -92,25 +130,27 @@ namespace Zcrypta.Context
                 }
             }
 
-            long tradingPairId = 0;
             foreach (var tradingPair in tradingPairs)
             {
                 context.TradingPairs.Add(tradingPair);
                 await context.SaveChangesAsync();
-                tradingPairId = tradingPair.Id;
             }
 
-            long strategyId = 0;
             foreach (var signalStrategy in signalStrategies)
             {
                 context.SignalStrategies.Add(signalStrategy);
                 await context.SaveChangesAsync();
-                strategyId = signalStrategy.Id;
             }
 
             var user2 = await userManager.FindByEmailAsync("zy@zcrypta.com");
-            context.UserSignalStrategies.Add(new UserSignalStrategy {  StrategyId = strategyId, TradingPairId = tradingPairId, UserId = user2.Id});
 
+            Random random = new Random(tradingPairs.Count());
+            var index = random.Next();
+
+            foreach (var strategy in signalStrategies)
+            {
+                context.UserSignalStrategies.Add(new UserSignalStrategy { StrategyId = strategy.Id, UserId = user2.Id });
+            }
             await context.SaveChangesAsync();
         }
 

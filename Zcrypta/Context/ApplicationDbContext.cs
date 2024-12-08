@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using Zcrypta.Entities.Dtos;
 using Zcrypta.Entities.Models;
 using Zcrypta.Models;
 
@@ -13,6 +12,9 @@ namespace Zcrypta.Context
         public DbSet<SignalStrategy> SignalStrategies { get; set; }
         public DbSet<TradingPair> TradingPairs { get; set; }
         public DbSet<UserSignalStrategy> UserSignalStrategies { get; set; }
+        public virtual DbSet<TradingSignal> TradingSignals { get; set; }
+
+        public virtual DbSet<UserTradingSignal> UserTradingSignals { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -30,6 +32,11 @@ namespace Zcrypta.Context
                 entity.Property(e => e.UpdatedBy)
                     .HasMaxLength(100)
                     .IsUnicode(false);
+
+                entity.HasOne(d => d.TradingPair).WithMany(p => p.SignalStrategies)
+                    .HasForeignKey(d => d.TradingPairId)
+                    .OnDelete(DeleteBehavior.ClientSetNull)
+                    .HasConstraintName("FK_SignalStrategies_TradingPairs");
             });
 
             modelBuilder.Entity<TradingPair>(entity =>
@@ -58,11 +65,30 @@ namespace Zcrypta.Context
                     .HasForeignKey(d => d.StrategyId)
                     .OnDelete(DeleteBehavior.ClientSetNull)
                     .HasConstraintName("FK_UserSignalStrategies_SignalStrategies");
+            });
 
-                entity.HasOne(d => d.TradingPair).WithMany(p => p.UserSignalStrategies)
-                    .HasForeignKey(d => d.TradingPairId)
-                    .OnDelete(DeleteBehavior.ClientSetNull)
-                    .HasConstraintName("FK_UserSignalStrategies_TradingPairs");
+            modelBuilder.Entity<TradingSignal>(entity =>
+            {
+                entity.HasKey(e => e.Id).HasName("PK__TradingS__3214EC07AFAF5B7E");
+
+                entity.Property(e => e.DateTime).HasColumnType("datetime");
+                entity.Property(e => e.Symbol)
+                    .IsRequired()
+                    .HasMaxLength(40)
+                    .IsUnicode(false);
+            });
+
+            modelBuilder.Entity<UserTradingSignal>(entity =>
+            {
+                entity.HasKey(e => e.Id).HasName("PK__UserTrad__3214EC0707528D36");
+
+                entity.Property(e => e.UserId)
+                    .IsRequired()
+                    .HasMaxLength(450);
+
+                entity.HasOne(d => d.TradingSignal).WithMany(p => p.UserTradingSignals)
+                    .HasForeignKey(d => d.TradingSignalId)
+                    .HasConstraintName("FK_UserTradingSignals_TradingSignals");
             });
         }
     }

@@ -13,5 +13,5 @@ public partial class TradingPair
 
     public string Quote { get; set; }
 
-    public virtual ICollection<UserSignalStrategy> UserSignalStrategies { get; set; } = new List<UserSignalStrategy>();
+    public virtual ICollection<SignalStrategy> SignalStrategies { get; set; } = new List<SignalStrategy>();
 }

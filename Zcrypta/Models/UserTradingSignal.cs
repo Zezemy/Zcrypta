@@ -5,13 +5,13 @@ using System.Collections.Generic;
 
 namespace Zcrypta.Models;
 
-public partial class UserSignalStrategy
+public partial class UserTradingSignal
 {
     public long Id { get; set; }
 
     public string UserId { get; set; }
 
-    public long StrategyId { get; set; }
+    public long TradingSignalId { get; set; }
 
-    public virtual SignalStrategy Strategy { get; set; }
+    public virtual TradingSignal TradingSignal { get; set; }
 }

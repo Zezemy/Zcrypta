@@ -15,15 +15,11 @@
    "T4TemplatePath": null,
    "Tables": [
       {
-         "Name": "[dbo].[SignalStrategies]",
+         "Name": "[dbo].[TradingSignals]",
          "ObjectType": 0
       },
       {
-         "Name": "[dbo].[TradingPairs]",
-         "ObjectType": 0
-      },
-      {
-         "Name": "[dbo].[UserSignalStrategies]",
+         "Name": "[dbo].[UserTradingSignals]",
          "ObjectType": 0
       }
    ],
@@ -31,7 +27,7 @@
    "UncountableWords": null,
    "UseAsyncStoredProcedureCalls": true,
    "UseBoolPropertiesWithoutDefaultSql": false,
-   "UseDatabaseNames": false,
+   "UseDatabaseNames": true,
    "UseDatabaseNamesForRoutines": true,
    "UseDateOnlyTimeOnly": true,
    "UseDbContextSplitting": false,
