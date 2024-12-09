@@ -1,15 +1,15 @@
-﻿
-<MudNavMenu>
+﻿<MudNavMenu>
     @*     <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
     <MudNavLink Href="counter" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Add">Counter</MudNavLink>
     <MudNavLink Href="weather" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.List">Weather</MudNavLink> *@
-        <AuthorizeView>
-            <Authorized>
-    <MudNavLink Href="dashboard" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
-    <MudNavLink Href="signals" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Sensors">Signals</MudNavLink>
-    <MudNavLink Href="chartSample" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Sensors">Chart Sample</MudNavLink>
-                </Authorized>
-        </AuthorizeView>
+    <AuthorizeView>
+        <Authorized>
+            <MudNavLink Href="dashboard" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Dashboard">Dashboard</MudNavLink>
+            <MudNavLink Href="signals" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Sensors">Signals</MudNavLink>
+            @* <MudNavLink Href="pastSignals" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Sensors">Past Signals</MudNavLink> *@
+            <MudNavLink Href="chartSample" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Sensors">Chart Sample</MudNavLink>
+        </Authorized>
+    </AuthorizeView>
 </MudNavMenu>
 
 

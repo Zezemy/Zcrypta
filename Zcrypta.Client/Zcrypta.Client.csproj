@@ -27,6 +27,9 @@
 		<Content Update="Components\App.razor">
 			<ExcludeFromSingleFile>true</ExcludeFromSingleFile>
 		</Content>
+		<Content Update="Components\Pages\PastSignals.razor">
+		  <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+		</Content>
 		<Content Update="Components\_Imports.razor">
 			<ExcludeFromSingleFile>true</ExcludeFromSingleFile>
 		</Content>

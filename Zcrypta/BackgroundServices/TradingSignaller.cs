@@ -9,7 +9,7 @@ namespace Zcrypta.BackgroundServices
     internal sealed class TradingSignaller(
         IServiceScopeFactory serviceScopeFactory,
         IHubContext<TradingSignalSenderHub, ISignallerClientContract> hubContext,
-        ILogger<MaCrossoverSignaller> logger)
+        ILogger<TradingSignaller> logger)
         : BackgroundService
     {
         private readonly Random _random = new();

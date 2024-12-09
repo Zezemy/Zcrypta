@@ -45,7 +45,17 @@ namespace Zcrypta.Context
         },
             new TradingPair()
         {
-            Base = "TRY",
+            Base = "USDT",
+            Quote = "TRY"
+        },
+            new TradingPair()
+        {
+            Base = "SUI",
+            Quote = "USDT"
+        },            
+            new TradingPair()
+        {
+            Base = "AI",
             Quote = "USDT"
         }
         ];
@@ -82,7 +92,29 @@ namespace Zcrypta.Context
             CreateDate = DateTime.Now,
             TradingPairId = 3,
             Properties = Newtonsoft.Json.JsonConvert.SerializeObject(new RsiStrategyOptions(){
-                KLineInterval = Entities.Enums.KLineIntervals.OneMinute, Period=14, Overbought =70, Oversold= 30, Ticker= "TRYUSDT"}),
+                KLineInterval = Entities.Enums.KLineIntervals.OneMinute, Period=14, Overbought =70, Oversold= 30, Ticker= "USDTTRY"}),
+            IsPredefined = true,
+        },
+            new SignalStrategy()
+        {
+            StrategyType = 3,
+            Interval = 60,
+            CreatedBy = "System",
+            CreateDate = DateTime.Now,
+            TradingPairId = 4,
+            Properties = Newtonsoft.Json.JsonConvert.SerializeObject(new BollingerBandsStrategyOptions(){
+                KLineInterval = Entities.Enums.KLineIntervals.OneMinute, Period=20, StandardDeviations= 2, Ticker= "SUIUSDT"}),
+            IsPredefined = true,
+        },
+            new SignalStrategy()
+        {
+            StrategyType = 4,
+            Interval = 60,
+            CreatedBy = "System",
+            CreateDate = DateTime.Now,
+            TradingPairId = 5,
+            Properties = Newtonsoft.Json.JsonConvert.SerializeObject(new StochasticOscillatorStrategyOptions(){
+                KLineInterval = Entities.Enums.KLineIntervals.OneMinute, Period=20, Overbought= 80, Oversold= 20, Ticker= "AIUSDT"}),
             IsPredefined = true,
         },
         ];

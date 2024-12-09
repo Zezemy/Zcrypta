@@ -1,15 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Zcrypta.Entities.Enums;
 
 namespace Zcrypta.Entities.Strategies.Options
 {
     public class BollingerBandsWorkerOptions
     {
-        public string Ticker { get; set; } = "ACAUSDT";
         public TimeSpan WorkInterval { get; set; } = TimeSpan.FromMinutes(1);
-        public TimeSpan KLineInterval { get; set; } = TimeSpan.FromMinutes(15);
+        public BollingerBandsStrategyOptions StrategyOptions { get; set; }
+    }
+
+    public class BollingerBandsStrategyOptions : StrategyOptions
+    {
+        public string Ticker { get; set; }
+        public int Period { get; set; }
+        public int StandardDeviations { get; set; }
+        public KLineIntervals KLineInterval { get; set; }
     }
 }

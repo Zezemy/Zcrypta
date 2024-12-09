@@ -1,15 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Zcrypta.Entities.Enums;
 
 namespace Zcrypta.Entities.Strategies.Options
 {
     public class StochasticOscillatorWorkerOptions
     {
-        public string Ticker { get; set; } = "AIUSDT";
         public TimeSpan WorkInterval { get; set; } = TimeSpan.FromMinutes(1);
-        public TimeSpan KLineInterval { get; set; } = TimeSpan.FromMinutes(15);
+        public StochasticOscillatorStrategyOptions StrategyOptions { get; set; }
+    }
+    public class StochasticOscillatorStrategyOptions : StrategyOptions
+    {
+        public string Ticker { get; set; }
+        public int Period { get; set; }
+        public int Overbought { get; set; }
+        public int Oversold { get; set; }
+        public KLineIntervals KLineInterval { get; set; }
     }
 }

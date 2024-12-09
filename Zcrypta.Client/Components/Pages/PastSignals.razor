@@ -1,4 +1,4 @@
-﻿@page "/signals"
+﻿@page "/pastSignals"
 @rendermode InteractiveAuto
 @using Microsoft.AspNetCore.SignalR.Client
 @using Zcrypta.Entities.Dtos
@@ -6,7 +6,7 @@
 @inject IConfiguration Configuration
 @implements IAsyncDisposable
 
-<PageTitle>Signals</PageTitle>
+<PageTitle>Past Signals</PageTitle>
 
 @if (!IsConnected)
 {
@@ -20,7 +20,7 @@ else
 
     <MudTable Items="signals" Dense=true Filter="new Func<TradingSignal,bool>(FilterFunc1)" @bind-SelectedItem="selectedItem1">
         <ToolBarContent>
-            <MudText Typo="Typo.h6">Signals</MudText>
+            <MudText Typo="Typo.h6">Past Signals</MudText>
             <MudSpacer />
             <MudTextField @bind-Value="searchString1" Placeholder="Search"
                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
@@ -99,17 +99,17 @@ else
     {
         hubConnection.On<TradingSignal>("ReceiveSignalUpdate", (signal) =>
         {
-            if (!signals.Any(x => x.Symbol == signal.Symbol && x.StrategyType == signal.StrategyType))
-            {
-                signals.Add(signal);
-            }
-            else
-            {
-                var signalInList = signals.Where(x => x.Symbol == signal.Symbol && x.StrategyType == signal.StrategyType).First();
-                var index = signals.IndexOf(signalInList);
-                signals[index] = signal;
-            }
-            //signals.Add(signal);
+            // if (!signals.Any(x => x.Symbol == signal.Symbol && x.StrategyType == signal.StrategyType))
+            // {
+            //     signals.Add(signal);
+            // }
+            // else
+            // {
+            //     var signalInList = signals.Where(x => x.Symbol == signal.Symbol && x.StrategyType == signal.StrategyType).First();
+            //     var index = signals.IndexOf(signalInList);
+            //     signals[index] = signal;
+            // }
+            signals.Add(signal);
             InvokeAsync(StateHasChanged);
         });
 

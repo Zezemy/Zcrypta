@@ -1,24 +1,16 @@
 ﻿using Binance.Net.Interfaces.Clients;
 using Zcrypta.Hubs;
-using CryptoExchange.Net.CommonObjects;
-using CryptoExchange.Net.Interfaces;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
-using Zcrypta.Entities.Dtos;
 using Zcrypta.Entities.Interfaces;
-using Zcrypta.Managers;
-using Zcrypta.Entities.BackgroundServices;
 using Zcrypta.Entities.Strategies.Options;
-using Zcrypta.Extensions;
 using Zcrypta.Entities.Enums;
-using Zcrypta.Models;
 using Zcrypta.Context;
 using Microsoft.EntityFrameworkCore;
 
 namespace Zcrypta.BackgroundServices
 {
     internal sealed class MaCrossoverSignaller(
-        SignalTickerManager signalTickerManager,
         IServiceScopeFactory serviceScopeFactory,
         IHubContext<TradingSignalSenderHub, ISignallerClientContract> hubContext,
         IOptions<MaCrossoverWorkerOptions> options,
@@ -47,25 +39,32 @@ namespace Zcrypta.BackgroundServices
 
             foreach (var strategy in strategies)
             {
-                var props = Newtonsoft.Json.JsonConvert.DeserializeObject<MaCrossoverStrategyOptions>(strategy.Properties);
-                var ticker = props.Ticker;
-                var kLineInterval = (Binance.Net.Enums.KlineInterval) Enum.Parse(typeof(Binance.Net.Enums.KlineInterval), props.KLineInterval.ToString());
-                var kLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, kLineInterval, limit: props.LongPeriod);
-                var closePricesLongList = kLines.Data.TakeLast(props.LongPeriod).Select(x => x.ClosePrice);
-                var latestCloseTime = kLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
-                //DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
-                //DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
+                try
+                {
+                    var props = Newtonsoft.Json.JsonConvert.DeserializeObject<MaCrossoverStrategyOptions>(strategy.Properties);
+                    var ticker = props.Ticker;
+                    var kLineInterval = (Binance.Net.Enums.KlineInterval)Enum.Parse(typeof(Binance.Net.Enums.KlineInterval), props.KLineInterval.ToString());
+                    var kLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, kLineInterval, limit: props.LongPeriod);
+                    var closePricesLongList = kLines.Data.TakeLast(props.LongPeriod).Select(x => x.ClosePrice);
+                    var latestCloseTime = kLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
+                    //DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
+                    //DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
 
-                Models.TradingSignal dbSignal = new Models.TradingSignal();
-                dbSignal.SignalType = (int) MovingAverageCrossover(closePricesLongList, props.ShortPeriod, props.LongPeriod);
-                dbSignal.Symbol = ticker;
-                dbSignal.DateTime = latestCloseTime;
-                dbSignal.StrategyType = (int) StrategyTypes.MaCrossover;
-                dbSignal.Interval = (int) KLineIntervals.OneMinute;
-                context.TradingSignals.Add(dbSignal);
-                await context.SaveChangesAsync();
+                    Models.TradingSignal dbSignal = new Models.TradingSignal();
+                    dbSignal.SignalType = (int)MovingAverageCrossover(closePricesLongList, props.ShortPeriod, props.LongPeriod);
+                    dbSignal.Symbol = ticker;
+                    dbSignal.DateTime = latestCloseTime;
+                    dbSignal.StrategyType = (int)StrategyTypes.MaCrossover;
+                    dbSignal.Interval = (int)KLineIntervals.OneMinute;
+                    context.TradingSignals.Add(dbSignal);
+                    await context.SaveChangesAsync();
 
-                logger.LogInformation($"Saved {ticker} signal to {dbSignal}");
+                    logger.LogInformation($"Saved {ticker} signal to {dbSignal}");
+                }
+                catch (Exception e)
+                {
+                    logger.LogError($"Error : {e}");
+                }
             }
         }
 

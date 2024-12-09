@@ -1,65 +1,73 @@
 ﻿using Binance.Net.Interfaces.Clients;
 using Zcrypta.Hubs;
-using CryptoExchange.Net.CommonObjects;
-using CryptoExchange.Net.Interfaces;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
-using Zcrypta.Entities.Dtos;
 using Zcrypta.Entities.Interfaces;
-using Zcrypta.Managers;
-using Zcrypta.Entities.BackgroundServices;
 using Zcrypta.Entities.Strategies.Options;
 using Zcrypta.Extensions;
 using Zcrypta.Entities.Enums;
+using Zcrypta.Context;
+using Microsoft.EntityFrameworkCore;
 
 namespace Zcrypta.BackgroundServices
 {
-	internal sealed class StochasticOscillatorSignaller(
-        SignalTickerManager signalTickerManager,
+    internal sealed class StochasticOscillatorSignaller(
         IServiceScopeFactory serviceScopeFactory,
-		IHubContext<TradingSignalSenderHub, ISignallerClientContract> hubContext,
-		IOptions<StochasticOscillatorWorkerOptions> options,
-		ILogger<StochasticOscillatorSignaller> logger,
-		IBinanceRestClient restClient)
-		: BackgroundService
-	{
-		private readonly Random _random = new();
-		private readonly StochasticOscillatorWorkerOptions _options = options.Value;
+        IHubContext<TradingSignalSenderHub, ISignallerClientContract> hubContext,
+        IOptions<StochasticOscillatorWorkerOptions> options,
+        ILogger<StochasticOscillatorSignaller> logger,
+        IBinanceRestClient restClient)
+        : BackgroundService
+    {
+        private readonly Random _random = new();
+        private readonly StochasticOscillatorWorkerOptions _options = options.Value;
 
-		protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-		{
-			while (!stoppingToken.IsCancellationRequested)
-			{
-				await UpdateStockPrices();
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        {
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                await SendSignal();
 
-				await Task.Delay(_options.WorkInterval, stoppingToken);
-			}
-		}
+                await Task.Delay(_options.WorkInterval, stoppingToken);
+            }
+        }
 
-		private async Task UpdateStockPrices()
-		{
-			foreach (string ticker in signalTickerManager.GetAllTickers())
-			{
-				//var ticker = _options.Ticker;
-				var binanceKLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, Binance.Net.Enums.KlineInterval.OneMinute, limit: 20);
-				var kLines = binanceKLines.Data.TakeLast(20).Select(x => x.ConvertToKLine());
-				var latestCloseTime = binanceKLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
-				//DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
-				//DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
-				TradingSignal signal = new TradingSignal();
-				signal.SignalType = StochasticSignal(kLines);
-				signal.Symbol = ticker;
-				signal.DateTime = latestCloseTime;
-				signal.StrategyType = StrategyTypes.StochasticOscillator;
-                signal.Interval = KLineIntervals.OneMinute;
+        private async Task SendSignal()
+        {
+            using var scope = serviceScopeFactory.CreateScope();
+            using var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var strategies = context.SignalStrategies.Where(x => x.StrategyType == (int)StrategyTypes.StochasticOscillator).Include(b => b.TradingPair).ToList();
 
-                //await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
+            foreach (var strategy in strategies)
+            {
+                try
+                {
+                    var props = Newtonsoft.Json.JsonConvert.DeserializeObject<StochasticOscillatorStrategyOptions>(strategy.Properties);
+                    var ticker = props.Ticker;
+                    var kLineInterval = (Binance.Net.Enums.KlineInterval)Enum.Parse(typeof(Binance.Net.Enums.KlineInterval), props.KLineInterval.ToString());
+                    var kLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, kLineInterval, limit: props.Period);
+                    var closePricesLongList = kLines.Data.TakeLast(props.Period).Select(x => x.ConvertToKLine());
+                    var latestCloseTime = kLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
+                    //DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
+                    //DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
 
-                await hubContext.Clients.Group(ticker + StrategyTypes.StochasticOscillator).ReceiveSignalUpdate(signal);
+                    Models.TradingSignal dbSignal = new Models.TradingSignal();
+                    dbSignal.SignalType = (int)StochasticSignal(closePricesLongList, props.Period, props.Overbought, props.Oversold);
+                    dbSignal.Symbol = ticker;
+                    dbSignal.DateTime = latestCloseTime;
+                    dbSignal.StrategyType = (int)StrategyTypes.StochasticOscillator;
+                    dbSignal.Interval = (int)KLineIntervals.OneMinute;
+                    context.TradingSignals.Add(dbSignal);
+                    await context.SaveChangesAsync();
 
-				logger.LogInformation("Updated {ticker} signal to {signal}", ticker, signal);
-			}
-		}
+                    logger.LogInformation($"Saved {ticker} signal to {dbSignal}");
+                }
+                catch (Exception e)
+                {
+                    logger.LogError($"Error : {e}");
+                }
+            }
+        }
 
         // 5. Stochastic Oscillator
         public static SignalTypes StochasticSignal(IEnumerable<IKLine> prices, int period = 14, decimal overbought = 80, decimal oversold = 20)
