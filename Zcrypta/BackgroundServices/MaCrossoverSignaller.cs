@@ -33,13 +33,13 @@ namespace Zcrypta.BackgroundServices
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                await UpdateStockPrices();
+                await SendSignal();
 
                 await Task.Delay(_options.WorkInterval, stoppingToken);
             }
         }
 
-        private async Task UpdateStockPrices()
+        private async Task SendSignal()
         {
             using var scope = serviceScopeFactory.CreateScope();
             using var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -55,27 +55,17 @@ namespace Zcrypta.BackgroundServices
                 var latestCloseTime = kLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
                 //DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
                 //DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
-                Entities.Dtos.TradingSignal signal = new Entities.Dtos.TradingSignal();
-                signal.SignalType = MovingAverageCrossover(closePricesLongList, props.ShortPeriod, props.LongPeriod);
-                signal.Symbol = ticker;
-                signal.DateTime = latestCloseTime;
-                signal.StrategyType = StrategyTypes.MaCrossover;
-                signal.Interval = KLineIntervals.OneMinute;
-
-                //await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
-
-                await hubContext.Clients.Group(ticker + StrategyTypes.MaCrossover).ReceiveSignalUpdate(signal);
-
-                logger.LogInformation("Updated {ticker} signal to {signal}", ticker, signal);
 
                 Models.TradingSignal dbSignal = new Models.TradingSignal();
-                dbSignal.SignalType = (int) signal.SignalType;
+                dbSignal.SignalType = (int) MovingAverageCrossover(closePricesLongList, props.ShortPeriod, props.LongPeriod);
                 dbSignal.Symbol = ticker;
                 dbSignal.DateTime = latestCloseTime;
                 dbSignal.StrategyType = (int) StrategyTypes.MaCrossover;
                 dbSignal.Interval = (int) KLineIntervals.OneMinute;
                 context.TradingSignals.Add(dbSignal);
                 await context.SaveChangesAsync();
+
+                logger.LogInformation($"Saved {ticker} signal to {dbSignal}");
             }
         }
 

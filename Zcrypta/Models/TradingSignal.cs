@@ -15,7 +15,7 @@ public partial class TradingSignal
 
     public int SignalType { get; set; }
 
-    public DateTime? DateTime { get; set; }
+    public DateTime DateTime { get; set; }
 
     public int StrategyType { get; set; }
 
