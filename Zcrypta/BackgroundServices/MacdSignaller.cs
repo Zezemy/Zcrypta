@@ -61,16 +61,6 @@ namespace Zcrypta.BackgroundServices
 			}
 		}
 
-		private decimal CalculateNewPrice(decimal currentPrice)
-		{
-			double change = 0.02;
-			decimal priceFactor = (decimal)(_random.NextDouble() * change * 2 - change);
-			decimal priceChange = currentPrice * priceFactor;
-			decimal newPrice = Math.Max(0, currentPrice + priceChange);
-			newPrice = Math.Round(newPrice, 2);
-			return newPrice;
-		}
-
         // 3. MACD (Moving Average Convergence Divergence)
         public static SignalTypes MACDSignal(List<decimal> prices, int fastPeriod = 12, int slowPeriod = 26, int signalPeriod = 9)
         {

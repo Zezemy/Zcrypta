@@ -14,17 +14,17 @@ using Zcrypta.Entities.Enums;
 
 namespace Zcrypta.BackgroundServices
 {
-    internal sealed class BollingerBandsSignaller(
+    internal sealed class MomentumSignaller(
         SignalTickerManager signalTickerManager,
         IServiceScopeFactory serviceScopeFactory,
         IHubContext<TradingSignalSenderHub, ISignallerClientContract> hubContext,
-        IOptions<BollingerBandsWorkerOptions> options,
-        ILogger<BollingerBandsSignaller> logger,
+        IOptions<MomentumWorkerOptions> options,
+        ILogger<MomentumSignaller> logger,
         IBinanceRestClient restClient)
         : BackgroundService
     {
         private readonly Random _random = new();
-        private readonly BollingerBandsWorkerOptions _options = options.Value;
+        private readonly MomentumWorkerOptions _options = options.Value;
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -42,47 +42,36 @@ namespace Zcrypta.BackgroundServices
             {
                 //var ticker = _options.Ticker;
                 var kLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, Binance.Net.Enums.KlineInterval.OneMinute, limit: 20);
-                var closePricesLongList = kLines.Data.TakeLast(20).Select(x => x.ClosePrice);
+                var closePricesLongList = kLines.Data.TakeLast(20).Select(x => x.ClosePrice).ToList();
                 var latestCloseTime = kLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
                 //DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
                 //DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
                 TradingSignal signal = new TradingSignal();
-                signal.SignalType = BollingerBandsSignal(closePricesLongList.ToList());
+                signal.SignalType = MomentumSignal(closePricesLongList);
                 signal.Symbol = ticker;
                 signal.DateTime = latestCloseTime;
-                signal.StrategyType = StrategyTypes.BollingerBands;
+                signal.StrategyType = StrategyTypes.Momentum;
                 signal.Interval = KLineIntervals.OneMinute;
 
                 //await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
 
-                await hubContext.Clients.Group(ticker + StrategyTypes.BollingerBands).ReceiveSignalUpdate(signal);
+                await hubContext.Clients.Group(ticker + StrategyTypes.Momentum).ReceiveSignalUpdate(signal);
 
                 logger.LogInformation("Updated {ticker} signal to {signal}", ticker, signal);
             }
         }
 
-        // 4. Bollinger Bands
-        public static SignalTypes BollingerBandsSignal(List<decimal> prices, int period = 20, decimal standardDeviations = 2)
+        // 9. Momentum Strategy
+        public static SignalTypes MomentumSignal(List<decimal> prices, int period = 10)
         {
-            if (prices.Count < period) return SignalTypes.Hold;
+            if (prices.Count() < period) return SignalTypes.Hold;
 
-            var sma = prices.TakeLast(period).Average();
-            var std = CalculateStandardDeviation(prices.TakeLast(period).ToList());
+            var momentum = prices.Last() - prices[prices.Count() - period];
+            var previousMomentum = prices[prices.Count() - 2] - prices[prices.Count() - period - 1];
 
-            var upperBand = sma + (standardDeviations * std);
-            var lowerBand = sma - (standardDeviations * std);
-            var currentPrice = prices.Last();
-
-            if (currentPrice < lowerBand) return SignalTypes.Buy;
-            if (currentPrice > upperBand) return SignalTypes.Sell;
+            if (momentum > previousMomentum && momentum > 0) return SignalTypes.Buy;
+            if (momentum < previousMomentum && momentum < 0) return SignalTypes.Sell;
             return SignalTypes.Hold;
-        }
-
-        private static decimal CalculateStandardDeviation(List<decimal> values)
-        {
-            var avg = values.Average();
-            var sumOfSquaresOfDifferences = values.Select(val => (val - avg) * (val - avg)).Sum();
-            return (decimal)Math.Sqrt((double)(sumOfSquaresOfDifferences / values.Count));
         }
     }
 }

@@ -14,17 +14,17 @@ using Zcrypta.Entities.Enums;
 
 namespace Zcrypta.BackgroundServices
 {
-    internal sealed class BollingerBandsSignaller(
+    internal sealed class TripleMaCrossoverSignaller(
         SignalTickerManager signalTickerManager,
         IServiceScopeFactory serviceScopeFactory,
         IHubContext<TradingSignalSenderHub, ISignallerClientContract> hubContext,
-        IOptions<BollingerBandsWorkerOptions> options,
-        ILogger<BollingerBandsSignaller> logger,
+        IOptions<TripleMaCrossoverWorkerOptions> options,
+        ILogger<TripleMaCrossoverSignaller> logger,
         IBinanceRestClient restClient)
         : BackgroundService
     {
         private readonly Random _random = new();
-        private readonly BollingerBandsWorkerOptions _options = options.Value;
+        private readonly TripleMaCrossoverWorkerOptions _options = options.Value;
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -47,42 +47,32 @@ namespace Zcrypta.BackgroundServices
                 //DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
                 //DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
                 TradingSignal signal = new TradingSignal();
-                signal.SignalType = BollingerBandsSignal(closePricesLongList.ToList());
+                signal.SignalType = TripleMovingAverageCrossover(closePricesLongList);
                 signal.Symbol = ticker;
                 signal.DateTime = latestCloseTime;
-                signal.StrategyType = StrategyTypes.BollingerBands;
+                signal.StrategyType = StrategyTypes.TripleMaCrossover;
                 signal.Interval = KLineIntervals.OneMinute;
 
                 //await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
 
-                await hubContext.Clients.Group(ticker + StrategyTypes.BollingerBands).ReceiveSignalUpdate(signal);
+                await hubContext.Clients.Group(ticker + StrategyTypes.TripleMaCrossover).ReceiveSignalUpdate(signal);
 
                 logger.LogInformation("Updated {ticker} signal to {signal}", ticker, signal);
             }
         }
 
-        // 4. Bollinger Bands
-        public static SignalTypes BollingerBandsSignal(List<decimal> prices, int period = 20, decimal standardDeviations = 2)
+        // 6. Triple Moving Average Crossover
+        public static SignalTypes TripleMovingAverageCrossover(IEnumerable<decimal> prices, int shortPeriod = 5, int mediumPeriod = 10, int longPeriod = 20)
         {
-            if (prices.Count < period) return SignalTypes.Hold;
+            if (prices.Count() < longPeriod) return SignalTypes.Hold;
 
-            var sma = prices.TakeLast(period).Average();
-            var std = CalculateStandardDeviation(prices.TakeLast(period).ToList());
+            var shortMA = prices.TakeLast(shortPeriod).Average();
+            var mediumMA = prices.TakeLast(mediumPeriod).Average();
+            var longMA = prices.TakeLast(longPeriod).Average();
 
-            var upperBand = sma + (standardDeviations * std);
-            var lowerBand = sma - (standardDeviations * std);
-            var currentPrice = prices.Last();
-
-            if (currentPrice < lowerBand) return SignalTypes.Buy;
-            if (currentPrice > upperBand) return SignalTypes.Sell;
+            if (shortMA > mediumMA && mediumMA > longMA) return SignalTypes.Buy;
+            if (shortMA < mediumMA && mediumMA < longMA) return SignalTypes.Sell;
             return SignalTypes.Hold;
-        }
-
-        private static decimal CalculateStandardDeviation(List<decimal> values)
-        {
-            var avg = values.Average();
-            var sumOfSquaresOfDifferences = values.Select(val => (val - avg) * (val - avg)).Sum();
-            return (decimal)Math.Sqrt((double)(sumOfSquaresOfDifferences / values.Count));
         }
     }
 }

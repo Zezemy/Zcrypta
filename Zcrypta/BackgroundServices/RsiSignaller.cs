@@ -61,16 +61,6 @@ namespace Zcrypta.BackgroundServices
             }
         }
 
-        private decimal CalculateNewPrice(decimal currentPrice)
-        {
-            double change = 0.02;
-            decimal priceFactor = (decimal)(_random.NextDouble() * change * 2 - change);
-            decimal priceChange = currentPrice * priceFactor;
-            decimal newPrice = Math.Max(0, currentPrice + priceChange);
-            newPrice = Math.Round(newPrice, 2);
-            return newPrice;
-        }
-
         // 2. RSI (Relative Strength Index)
         public static SignalTypes RSISignal(List<decimal> prices, int period = 14, decimal overbought = 70, decimal oversold = 30)
         {

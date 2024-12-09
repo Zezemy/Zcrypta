@@ -11,20 +11,21 @@ using Zcrypta.Entities.BackgroundServices;
 using Zcrypta.Entities.Strategies.Options;
 using Zcrypta.Extensions;
 using Zcrypta.Entities.Enums;
+using System.Linq;
 
 namespace Zcrypta.BackgroundServices
 {
-	internal sealed class StochasticOscillatorSignaller(
+	internal sealed class ExponentialMaCrossoverWithVolumeSignaller(
         SignalTickerManager signalTickerManager,
         IServiceScopeFactory serviceScopeFactory,
 		IHubContext<TradingSignalSenderHub, ISignallerClientContract> hubContext,
-		IOptions<StochasticOscillatorWorkerOptions> options,
-		ILogger<StochasticOscillatorSignaller> logger,
+		IOptions<ExponentialMaCrossoverWithVolumeWorkerOptions> options,
+		ILogger<ExponentialMaCrossoverWithVolumeSignaller> logger,
 		IBinanceRestClient restClient)
 		: BackgroundService
 	{
 		private readonly Random _random = new();
-		private readonly StochasticOscillatorWorkerOptions _options = options.Value;
+		private readonly ExponentialMaCrossoverWithVolumeWorkerOptions _options = options.Value;
 
 		protected override async Task ExecuteAsync(CancellationToken stoppingToken)
 		{
@@ -47,36 +48,49 @@ namespace Zcrypta.BackgroundServices
 				//DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
 				//DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
 				TradingSignal signal = new TradingSignal();
-				signal.SignalType = StochasticSignal(kLines);
+				signal.SignalType = EMAVolumeSignal(kLines);
 				signal.Symbol = ticker;
 				signal.DateTime = latestCloseTime;
-				signal.StrategyType = StrategyTypes.StochasticOscillator;
+				signal.StrategyType = StrategyTypes.ExponentialMaCrossoverWithVolume;
                 signal.Interval = KLineIntervals.OneMinute;
 
                 //await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
 
-                await hubContext.Clients.Group(ticker + StrategyTypes.StochasticOscillator).ReceiveSignalUpdate(signal);
+                await hubContext.Clients.Group(ticker + StrategyTypes.ExponentialMaCrossoverWithVolume).ReceiveSignalUpdate(signal);
 
 				logger.LogInformation("Updated {ticker} signal to {signal}", ticker, signal);
 			}
 		}
 
-        // 5. Stochastic Oscillator
-        public static SignalTypes StochasticSignal(IEnumerable<IKLine> prices, int period = 14, decimal overbought = 80, decimal oversold = 20)
+        // 10. Exponential Moving Average Crossover with Volume
+        public static SignalTypes EMAVolumeSignal(IEnumerable<IKLine> prices, int shortPeriod = 10, int longPeriod = 20)
         {
-            if (prices.Count() < period) return SignalTypes.Hold;
+            if (prices.Count() < longPeriod) return SignalTypes.Hold;
 
-            var recentPrices = prices.TakeLast(period).ToList();
-            var highestHigh = recentPrices.Max(p => p.HighPrice);
-            var lowestLow = recentPrices.Min(p => p.LowPrice);
+            var closePrices = prices.Select(p => p.ClosePrice).ToList();
+            var volumes = prices.Select(p => p.Volume).ToList();
 
-            if (highestHigh - lowestLow == 0) return SignalTypes.Hold;
+            var shortEMA = CalculateEMA(closePrices, shortPeriod);
+            var longEMA = CalculateEMA(closePrices, longPeriod);
+            var averageVolume = volumes.TakeLast(shortPeriod).Average();
+            var currentVolume = volumes.Last();
 
-            var k = ((prices.Last().ClosePrice - lowestLow) / (highestHigh - lowestLow)) * 100;
-
-            if (k < oversold) return SignalTypes.Buy;
-            if (k > overbought) return SignalTypes.Sell;
+            if (shortEMA > longEMA && currentVolume > averageVolume) return SignalTypes.Buy;
+            if (shortEMA < longEMA && currentVolume > averageVolume) return SignalTypes.Sell;
             return SignalTypes.Hold;
+        }
+
+        private static decimal CalculateEMA(List<decimal> prices, int period)
+        {
+            var multiplier = 2.0m / (period + 1);
+            var ema = prices.Take(period).Average();
+
+            foreach (var price in prices.Skip(period))
+            {
+                ema = (price - ema) * multiplier + ema;
+            }
+
+            return ema;
         }
     }
 }

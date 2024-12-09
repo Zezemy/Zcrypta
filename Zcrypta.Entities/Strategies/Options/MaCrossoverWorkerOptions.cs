@@ -1,15 +1,18 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Zcrypta.Entities.Enums;
 
 namespace Zcrypta.Entities.Strategies.Options
 {
     public class MaCrossoverWorkerOptions
     {
-        public string Ticker { get; set; } = "BTCUSDT";
         public TimeSpan WorkInterval { get; set; } = TimeSpan.FromMinutes(1);
-        public TimeSpan KLineInterval { get; set; } = TimeSpan.FromMinutes(15);
+        public MaCrossoverStrategyOptions StrategyOptions { get; set; }
+    }
+
+    public class MaCrossoverStrategyOptions : StrategyOptions 
+    {
+        public string Ticker { get; set; }
+        public int ShortPeriod { get; set; }
+        public int LongPeriod { get; set; }
+        public KLineIntervals KLineInterval { get; set; }
     }
 }

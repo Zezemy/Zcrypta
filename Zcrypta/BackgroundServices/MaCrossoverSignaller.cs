@@ -11,6 +11,9 @@ using Zcrypta.Entities.BackgroundServices;
 using Zcrypta.Entities.Strategies.Options;
 using Zcrypta.Extensions;
 using Zcrypta.Entities.Enums;
+using Zcrypta.Models;
+using Zcrypta.Context;
+using Microsoft.EntityFrameworkCore;
 
 namespace Zcrypta.BackgroundServices
 {
@@ -30,49 +33,44 @@ namespace Zcrypta.BackgroundServices
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                await UpdateStockPrices();
+                await SendSignal();
 
                 await Task.Delay(_options.WorkInterval, stoppingToken);
             }
         }
 
-        private async Task UpdateStockPrices()
+        private async Task SendSignal()
         {
-            foreach (string ticker in signalTickerManager.GetAllTickers())
+            using var scope = serviceScopeFactory.CreateScope();
+            using var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var strategies = context.SignalStrategies.Where(x => x.StrategyType == (int)StrategyTypes.MaCrossover).Include(b => b.TradingPair).ToList();
+
+            foreach (var strategy in strategies)
             {
-                //var ticker = _options.Ticker;
-                var kLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, Binance.Net.Enums.KlineInterval.OneMinute, limit: 20);
-                var closePricesLongList = kLines.Data.TakeLast(20).Select(x => x.ClosePrice);
+                var props = Newtonsoft.Json.JsonConvert.DeserializeObject<MaCrossoverStrategyOptions>(strategy.Properties);
+                var ticker = props.Ticker;
+                var kLineInterval = (Binance.Net.Enums.KlineInterval) Enum.Parse(typeof(Binance.Net.Enums.KlineInterval), props.KLineInterval.ToString());
+                var kLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, kLineInterval, limit: props.LongPeriod);
+                var closePricesLongList = kLines.Data.TakeLast(props.LongPeriod).Select(x => x.ClosePrice);
                 var latestCloseTime = kLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
                 //DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
                 //DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
-                TradingSignal signal = new TradingSignal();
-                signal.SignalType = MovingAverageCrossover(closePricesLongList);
-                signal.Symbol = ticker;
-                signal.DateTime = latestCloseTime;
-                signal.StrategyType = StrategyTypes.MaCrossover;
-                signal.Interval = KLineIntervals.OneMinute;
 
-                //await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
+                Models.TradingSignal dbSignal = new Models.TradingSignal();
+                dbSignal.SignalType = (int) MovingAverageCrossover(closePricesLongList, props.ShortPeriod, props.LongPeriod);
+                dbSignal.Symbol = ticker;
+                dbSignal.DateTime = latestCloseTime;
+                dbSignal.StrategyType = (int) StrategyTypes.MaCrossover;
+                dbSignal.Interval = (int) KLineIntervals.OneMinute;
+                context.TradingSignals.Add(dbSignal);
+                await context.SaveChangesAsync();
 
-                await hubContext.Clients.Group(ticker + StrategyTypes.MaCrossover).ReceiveSignalUpdate(signal);
-
-                logger.LogInformation("Updated {ticker} signal to {signal}", ticker, signal);
+                logger.LogInformation($"Saved {ticker} signal to {dbSignal}");
             }
         }
 
-        private decimal CalculateNewPrice(decimal currentPrice)
-        {
-            double change = 0.02;
-            decimal priceFactor = (decimal)(_random.NextDouble() * change * 2 - change);
-            decimal priceChange = currentPrice * priceFactor;
-            decimal newPrice = Math.Max(0, currentPrice + priceChange);
-            newPrice = Math.Round(newPrice, 2);
-            return newPrice;
-        }
-
         // 1. Simple Moving Average Crossover
-        public static SignalTypes MovingAverageCrossover(IEnumerable<decimal> prices, int shortPeriod = 10, int longPeriod = 20)
+        public static SignalTypes MovingAverageCrossover(IEnumerable<decimal> prices, int shortPeriod, int longPeriod)
         {
             if (prices.Count() < longPeriod) return SignalTypes.Hold;
 
