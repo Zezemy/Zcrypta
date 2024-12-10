@@ -1,21 +1,17 @@
 ﻿using Binance.Net.Interfaces.Clients;
 using Zcrypta.Hubs;
-using CryptoExchange.Net.CommonObjects;
-using CryptoExchange.Net.Interfaces;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
-using Zcrypta.Entities.Dtos;
 using Zcrypta.Entities.Interfaces;
 using Zcrypta.Managers;
-using Zcrypta.Entities.BackgroundServices;
 using Zcrypta.Entities.Strategies.Options;
-using Zcrypta.Extensions;
 using Zcrypta.Entities.Enums;
+using Zcrypta.Context;
+using Microsoft.EntityFrameworkCore;
 
 namespace Zcrypta.BackgroundServices
 {
     internal sealed class MomentumSignaller(
-        SignalTickerManager signalTickerManager,
         IServiceScopeFactory serviceScopeFactory,
         IHubContext<TradingSignalSenderHub, ISignallerClientContract> hubContext,
         IOptions<MomentumWorkerOptions> options,
@@ -30,39 +26,51 @@ namespace Zcrypta.BackgroundServices
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                await UpdateStockPrices();
+                await SendSignal();
 
                 await Task.Delay(_options.WorkInterval, stoppingToken);
             }
         }
 
-        private async Task UpdateStockPrices()
+        private async Task SendSignal()
         {
-            foreach (string ticker in signalTickerManager.GetAllTickers())
+            using var scope = serviceScopeFactory.CreateScope();
+            using var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var strategies = context.SignalStrategies.Where(x => x.StrategyType == (int)StrategyTypes.Momentum).Include(b => b.TradingPair).ToList();
+
+            foreach (var strategy in strategies)
             {
-                //var ticker = _options.Ticker;
-                var kLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, Binance.Net.Enums.KlineInterval.OneMinute, limit: 20);
-                var closePricesLongList = kLines.Data.TakeLast(20).Select(x => x.ClosePrice).ToList();
-                var latestCloseTime = kLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
-                //DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
-                //DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
-                TradingSignal signal = new TradingSignal();
-                signal.SignalType = MomentumSignal(closePricesLongList);
-                signal.Symbol = ticker;
-                signal.DateTime = latestCloseTime;
-                signal.StrategyType = StrategyTypes.Momentum;
-                signal.Interval = KLineIntervals.OneMinute;
+                try
+                {
+                    var props = Newtonsoft.Json.JsonConvert.DeserializeObject<MomentumStrategyOptions>(strategy.Properties);
+                    var ticker = props.Ticker;
+                    var kLineInterval = (Binance.Net.Enums.KlineInterval)Enum.Parse(typeof(Binance.Net.Enums.KlineInterval), props.KLineInterval.ToString());
+                    var kLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, kLineInterval, limit: props.Period+1);
+                    var closePricesLongList = kLines.Data.TakeLast(props.Period+1).Select(x => x.ClosePrice);
+                    var latestCloseTime = kLines.Data.TakeLast(1).Select(x => x.CloseTime.ToLocalTime()).FirstOrDefault();
+                    //DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
+                    //DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
 
-                //await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
+                    Models.TradingSignal dbSignal = new Models.TradingSignal();
+                    dbSignal.SignalType = (int)MomentumSignal(closePricesLongList.ToList(), props.Period);
+                    dbSignal.Symbol = ticker;
+                    dbSignal.DateTime = latestCloseTime;
+                    dbSignal.StrategyType = (int)StrategyTypes.Momentum;
+                    dbSignal.Interval = (int)KLineIntervals.OneMinute;
+                    context.TradingSignals.Add(dbSignal);
+                    await context.SaveChangesAsync();
 
-                await hubContext.Clients.Group(ticker + StrategyTypes.Momentum).ReceiveSignalUpdate(signal);
-
-                logger.LogInformation("Updated {ticker} signal to {signal}", ticker, signal);
+                    logger.LogInformation($"Saved {ticker} signal to {dbSignal}");
+                }
+                catch (Exception e)
+                {
+                    logger.LogError($"Error : {e}");
+                }
             }
         }
 
         // 9. Momentum Strategy
-        public static SignalTypes MomentumSignal(List<decimal> prices, int period = 10)
+        public static SignalTypes MomentumSignal(List<decimal> prices, int period)
         {
             if (prices.Count() < period) return SignalTypes.Hold;
 

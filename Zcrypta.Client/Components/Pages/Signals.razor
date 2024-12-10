@@ -77,7 +77,7 @@ else
 
     public async Task JoinDefaultTickers(StrategyTypes strategyType)
     {
-        List<string> defaultTickers = new List<string> { "BTCUSDT", "ETHUSDT", "SUIUSDT", "ACAUSDT", "AIUSDT", "STRKUSDT", "ZKUSDT", "USDTTRY" };
+        List<string> defaultTickers = new List<string> { "BTCUSDT", "ETHUSDT", "SUIUSDT", "ACAUSDT", "AIUSDT", "STRKUSDT", "ZKUSDT", "USDTTRY", "XAIUSDT", "MAVUSDT" };
         foreach (var ticker in defaultTickers)
         {
             await JoinTicker(ticker, strategyType, tradingSignalSenderHubConnection);

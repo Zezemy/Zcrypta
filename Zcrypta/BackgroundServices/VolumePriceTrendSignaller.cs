@@ -1,21 +1,17 @@
 ﻿using Binance.Net.Interfaces.Clients;
 using Zcrypta.Hubs;
-using CryptoExchange.Net.CommonObjects;
-using CryptoExchange.Net.Interfaces;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
-using Zcrypta.Entities.Dtos;
 using Zcrypta.Entities.Interfaces;
-using Zcrypta.Managers;
-using Zcrypta.Entities.BackgroundServices;
 using Zcrypta.Entities.Strategies.Options;
 using Zcrypta.Extensions;
 using Zcrypta.Entities.Enums;
+using Zcrypta.Context;
+using Microsoft.EntityFrameworkCore;
 
 namespace Zcrypta.BackgroundServices
 {
-	internal sealed class VolumePriceTrendSignaller(
-        SignalTickerManager signalTickerManager,
+    internal sealed class VolumePriceTrendSignaller(
         IServiceScopeFactory serviceScopeFactory,
 		IHubContext<TradingSignalSenderHub, ISignallerClientContract> hubContext,
 		IOptions<VolumePriceTrendWorkerOptions> options,
@@ -30,39 +26,51 @@ namespace Zcrypta.BackgroundServices
 		{
 			while (!stoppingToken.IsCancellationRequested)
 			{
-				await UpdateStockPrices();
+				await SendSignal();
 
 				await Task.Delay(_options.WorkInterval, stoppingToken);
 			}
 		}
 
-		private async Task UpdateStockPrices()
+		private async Task SendSignal()
 		{
-			foreach (string ticker in signalTickerManager.GetAllTickers())
+            using var scope = serviceScopeFactory.CreateScope();
+            using var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var strategies = context.SignalStrategies.Where(x => x.StrategyType == (int)StrategyTypes.VolumePriceTrend).Include(b => b.TradingPair).ToList();
+
+            foreach (var strategy in strategies)
 			{
-				//var ticker = _options.Ticker;
-				var binanceKLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, Binance.Net.Enums.KlineInterval.OneMinute, limit: 20);
-				var kLines = binanceKLines.Data.TakeLast(20).Select(x => x.ConvertToKLine()).ToList();
-				var latestCloseTime = binanceKLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
-				//DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
-				//DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
-				TradingSignal signal = new TradingSignal();
-				signal.SignalType = VolumePriceTrendSignal(kLines);
-				signal.Symbol = ticker;
-				signal.DateTime = latestCloseTime;
-				signal.StrategyType = StrategyTypes.VolumePriceTrend;
-                signal.Interval = KLineIntervals.OneMinute;
+                try
+                {
+                    var props = Newtonsoft.Json.JsonConvert.DeserializeObject<VolumePriceTrendStrategyOptions>(strategy.Properties);
+                    var ticker = props.Ticker;
+                    var kLineInterval = (Binance.Net.Enums.KlineInterval)Enum.Parse(typeof(Binance.Net.Enums.KlineInterval), props.KLineInterval.ToString());
+                    var kLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, kLineInterval, limit: props.Period);
+                    var closePricesLongList = kLines.Data.TakeLast(props.Period).Select(x => x.ConvertToKLine());
+                    var latestCloseTime = kLines.Data.TakeLast(1).Select(x => x.CloseTime.ToLocalTime()).FirstOrDefault();
+                    //DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
+                    //DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
 
-                //await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
+                    Models.TradingSignal dbSignal = new Models.TradingSignal();
+                    dbSignal.SignalType = (int)VolumePriceTrendSignal(closePricesLongList.ToList(), props.Period);
+                    dbSignal.Symbol = ticker;
+                    dbSignal.DateTime = latestCloseTime;
+                    dbSignal.StrategyType = (int)StrategyTypes.VolumePriceTrend;
+                    dbSignal.Interval = (int)KLineIntervals.OneMinute;
+                    context.TradingSignals.Add(dbSignal);
+                    await context.SaveChangesAsync();
 
-                await hubContext.Clients.Group(ticker + StrategyTypes.VolumePriceTrend).ReceiveSignalUpdate(signal);
-
-				logger.LogInformation("Updated {ticker} signal to {signal}", ticker, signal);
-			}
+                    logger.LogInformation($"Saved {ticker} signal to {dbSignal}");
+                }
+                catch (Exception e)
+                {
+                    logger.LogError($"Error : {e}");
+                }
+            }
 		}
 
         // 8. Volume Price Trend
-        public static SignalTypes VolumePriceTrendSignal(List<IKLine> prices, int period = 14)
+        public static SignalTypes VolumePriceTrendSignal(List<IKLine> prices, int period)
         {
             if (prices.Count() < period + 1) return SignalTypes.Hold;
 

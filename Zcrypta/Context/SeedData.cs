@@ -52,10 +52,35 @@ namespace Zcrypta.Context
         {
             Base = "SUI",
             Quote = "USDT"
-        },            
+        },
             new TradingPair()
         {
             Base = "AI",
+            Quote = "USDT"
+        },
+            new TradingPair()
+        {
+            Base = "ACA",
+            Quote = "USDT"
+        },
+            new TradingPair()
+        {
+            Base = "ZK",
+            Quote = "USDT"
+        },
+            new TradingPair()
+        {
+            Base = "XAI",
+            Quote = "USDT"
+        },
+            new TradingPair()
+        {
+            Base = "STRK",
+            Quote = "USDT"
+        },
+            new TradingPair()
+        {
+            Base = "MAV",
             Quote = "USDT"
         }
         ];
@@ -115,6 +140,61 @@ namespace Zcrypta.Context
             TradingPairId = 5,
             Properties = Newtonsoft.Json.JsonConvert.SerializeObject(new StochasticOscillatorStrategyOptions(){
                 KLineInterval = Entities.Enums.KLineIntervals.OneMinute, Period=20, Overbought= 80, Oversold= 20, Ticker= "AIUSDT"}),
+            IsPredefined = true,
+        },
+            new SignalStrategy()
+        {
+            StrategyType = 5,
+            Interval = 60,
+            CreatedBy = "System",
+            CreateDate = DateTime.Now,
+            TradingPairId = 6,
+            Properties = Newtonsoft.Json.JsonConvert.SerializeObject(new TripleMaCrossoverStrategyOptions(){
+                KLineInterval = Entities.Enums.KLineIntervals.OneMinute, ShortPeriod=5, MediumPeriod= 10, LongPeriod= 20, Ticker= "ACAUSDT"}),
+            IsPredefined = true,
+        },
+            new SignalStrategy()
+        {
+            StrategyType = 6,
+            Interval = 60,
+            CreatedBy = "System",
+            CreateDate = DateTime.Now,
+            TradingPairId = 7,
+            Properties = Newtonsoft.Json.JsonConvert.SerializeObject(new PriceChannelStrategyOptions(){
+                KLineInterval = Entities.Enums.KLineIntervals.OneMinute, Period= 20, Ticker= "ZKUSDT"}),
+            IsPredefined = true,
+        },
+            new SignalStrategy()
+        {
+            StrategyType = 7,
+            Interval = 60,
+            CreatedBy = "System",
+            CreateDate = DateTime.Now,
+            TradingPairId = 8,
+            Properties = Newtonsoft.Json.JsonConvert.SerializeObject(new VolumePriceTrendStrategyOptions(){
+                KLineInterval = Entities.Enums.KLineIntervals.OneMinute, Period= 14, Ticker= "XAIUSDT"}),
+            IsPredefined = true,
+        },
+            new SignalStrategy()
+        {
+            StrategyType = 8,
+            Interval = 60,
+            CreatedBy = "System",
+            CreateDate = DateTime.Now,
+            TradingPairId = 9,
+            Properties = Newtonsoft.Json.JsonConvert.SerializeObject(new MomentumStrategyOptions(){
+                KLineInterval = Entities.Enums.KLineIntervals.OneMinute, Period= 10, Ticker= "STRKUSDT"}),
+            IsPredefined = true,
+        },
+            new SignalStrategy()
+        {
+            StrategyType = 9,
+            Interval = 60,
+            CreatedBy = "System",
+            CreateDate = DateTime.Now,
+            TradingPairId = 10,
+            Properties = Newtonsoft.Json.JsonConvert.SerializeObject(new ExponentialMaCrossoverWithVolumeStrategyOptions(){
+                KLineInterval = Entities.Enums.KLineIntervals.OneMinute, ShortPeriod= 10, LongPeriod= 20, Ticker= "MAVUSDT"}),
             IsPredefined = true,
         },
         ];

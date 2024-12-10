@@ -46,7 +46,7 @@ namespace Zcrypta.BackgroundServices
                     var kLineInterval = (Binance.Net.Enums.KlineInterval)Enum.Parse(typeof(Binance.Net.Enums.KlineInterval), props.KLineInterval.ToString());
                     var kLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, kLineInterval, limit: props.SlowPeriod);
                     var closePricesLongList = kLines.Data.TakeLast(props.SlowPeriod).Select(x => x.ClosePrice);
-                    var latestCloseTime = kLines.Data.TakeLast(1).Select(x => x.CloseTime).FirstOrDefault();
+                    var latestCloseTime = kLines.Data.TakeLast(1).Select(x => x.CloseTime.ToLocalTime()).FirstOrDefault();
                     //DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
                     //DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
 

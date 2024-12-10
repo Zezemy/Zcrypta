@@ -1,15 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Zcrypta.Entities.Enums;
 
 namespace Zcrypta.Entities.Strategies.Options
 {
     public class ExponentialMaCrossoverWithVolumeWorkerOptions
     {
-        public string Ticker { get; set; } = "XAIUSDT";
         public TimeSpan WorkInterval { get; set; } = TimeSpan.FromMinutes(1);
-        public TimeSpan KLineInterval { get; set; } = TimeSpan.FromMinutes(15);
+        public ExponentialMaCrossoverWithVolumeStrategyOptions StrategyOptions { get; set; }
+    }
+    public class ExponentialMaCrossoverWithVolumeStrategyOptions : StrategyOptions
+    {
+        public string Ticker { get; set; }
+        public int ShortPeriod { get; set; }
+        public int LongPeriod { get; set; }
+        public KLineIntervals KLineInterval { get; set; }
     }
 }

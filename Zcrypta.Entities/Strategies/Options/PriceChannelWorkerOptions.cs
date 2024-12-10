@@ -1,15 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Zcrypta.Entities.Enums;
 
 namespace Zcrypta.Entities.Strategies.Options
 {
     public class PriceChannelWorkerOptions
     {
-        public string Ticker { get; set; } = "ZKUSDT";
         public TimeSpan WorkInterval { get; set; } = TimeSpan.FromMinutes(1);
-        public TimeSpan KLineInterval { get; set; } = TimeSpan.FromMinutes(15);
+        public PriceChannelStrategyOptions StrategyOptions { get; set; }
+    }
+    public class PriceChannelStrategyOptions : StrategyOptions
+    {
+        public string Ticker { get; set; }
+        public int Period { get; set; }
+        public KLineIntervals KLineInterval { get; set; }
     }
 }
