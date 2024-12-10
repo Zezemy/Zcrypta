@@ -5,7 +5,7 @@
 @inject IConfiguration Configuration
 @implements IAsyncDisposable
 
-<PageTitle>Home</PageTitle>
+<PageTitle></PageTitle>
 
 @if (!IsConnected)
 {
@@ -13,29 +13,58 @@
 }
 else
 {
-    <MudContainer MaxWidth="MaxWidth.Medium">
-
+    <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+        <MudText Typo="Typo.h4" Class="mb-2">Market</MudText>
         @if (prices.Count == 0)
         {
             <p><em>Loading...</em></p>
         }
         else
         {
-            <div class="ms-4 flex-grow-1">
-                <ul id="priceList">
-                    @foreach (var price in prices)
-                    {
-                        <li>@price.Value.Symbol : @price.Value.Price</li>
-                    }
-                </ul>
-            </div>
+            <MudGrid Gutter="2">
+                @foreach (var price in prices)
+                {
+                    <MudItem xs="12" sm="6" md="4" lg="3">
+                        <MudCard Elevation="3">
+                            <MudCardContent Class="d-flex justify-content-between align-items-center gap-4">
+                                <!-- Left: Symbol (Base) -->
+                                <MudElement Class="mt-2 overflow-auto">
+                                    <MudText Typo="Typo.h6">
+                                        @price.Value.TradingPair.Base
+                                    </MudText>
+                                </MudElement>
+
+                                <!-- Right: Price Details -->
+                                <MudElement Class="d-flex flex-column align-items-end flex-grow-1">
+                                    <!-- Price Change -->
+                                    <MudText Typo="Typo.body2" Class="d-flex justify-end gap-2" Color="@GetPriceColor(price.Value.PriceChange)">
+                                        <MudElement>
+                                            @(price.Value.PriceChange.ToString("0.00"))
+                                        </MudElement>
+                                        <MudElement>
+                                            (@(price.Value.PriceChangePercent.ToString("0.00"))%)
+                                        </MudElement>
+                                        <MudIcon Icon="@GetPriceIcon(price.Value.PriceChange)" Class="ms-1" />
+                                    </MudText>
+
+                                    <!-- Current Price -->
+                                    <MudText Typo="Typo.body1" Class="d-flex justify-end ">
+                                        @(price.Value.LastPrice.ToString("0.00") + " " + @price.Value.TradingPair.Quote)
+                                    </MudText>
+                                </MudElement>
+                            </MudCardContent>
+
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
         }
     </MudContainer>
 }
 
 @code {
     private HubConnection? hubConnection;
-    private Dictionary<string, CurrentPrice> prices = [];
+    private Dictionary<string, TradingDayTicker> prices = [];
     private string? tickerInput;
 
     protected override async Task OnInitializedAsync()
@@ -44,7 +73,7 @@ else
             .WithUrl(Configuration["BackendUrl"] + "/pricehub")
             .Build();
 
-        hubConnection.On<CurrentPrice>("ReceiveStockPriceUpdate", (price) =>
+        hubConnection.On<TradingDayTicker>("ReceiveStockPriceUpdate", (price) =>
         {
             if (!prices.ContainsKey(price.Symbol))
             {
@@ -59,7 +88,9 @@ else
 
         await hubConnection.StartAsync();
 
-        List<string> defaultTickers = new List<string> { "BTCUSDT", "ETHUSDT", "SAGAUSDT", "SUIUSDT" };
+
+
+        List<string> defaultTickers = new List<string> { "BTCUSDT", "ETHUSDT", "SAGAUSDT", "SUIUSDT", "USDTTRY", "MAVUSDT", "ZKUSDT", "ACAUSDT" };
 
         foreach (var ticker in defaultTickers)
         {
@@ -73,6 +104,20 @@ else
         {
             await hubConnection.SendAsync("JoinStockGroup", ticker);
         }
+    }
+
+    private MudBlazor.Color GetPriceColor(decimal change)
+    {
+        return change > 0 ? MudBlazor.Color.Success :
+               change < 0 ? MudBlazor.Color.Error :
+               MudBlazor.Color.Default;
+    }
+
+    private string GetPriceIcon(decimal change)
+    {
+        return change > 0 ? Icons.Material.Filled.ArrowUpward :
+               change < 0 ? Icons.Material.Filled.ArrowDownward :
+               Icons.Material.Filled.Remove;
     }
 
     public bool IsConnected =>

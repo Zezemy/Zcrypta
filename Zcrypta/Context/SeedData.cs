@@ -82,6 +82,11 @@ namespace Zcrypta.Context
         {
             Base = "MAV",
             Quote = "USDT"
+        },
+            new TradingPair()
+        {
+            Base = "SAGA",
+            Quote = "USDT"
         }
         ];
 

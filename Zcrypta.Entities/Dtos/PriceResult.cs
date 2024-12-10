@@ -8,7 +8,7 @@ namespace Zcrypta.Entities.Dtos
 {
     public class PriceResult
     {
-        public CurrentPrice Data { get; set; }
+        public TradingDayTicker Data { get; set; }
     }
 }
 

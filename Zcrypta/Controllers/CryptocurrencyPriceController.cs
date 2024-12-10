@@ -26,9 +26,9 @@ namespace Zcrypta.Controllers
             try
             {
                 ticker = ticker ?? "BTCUSDT";
-                var price = await _restClient.SpotApi.ExchangeData.GetPriceAsync(ticker);
+                var price = await _restClient.SpotApi.ExchangeData.GetTradingDayTickerAsync(ticker);
                 var jsonStr = Newtonsoft.Json.JsonConvert.SerializeObject(price.Data);
-                return Newtonsoft.Json.JsonConvert.DeserializeObject<CurrentPrice>(jsonStr);
+                return Newtonsoft.Json.JsonConvert.DeserializeObject<TradingDayTicker>(jsonStr);
             }
             catch (Exception ex)
             {

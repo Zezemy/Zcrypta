@@ -8,6 +8,8 @@ using Zcrypta.Entities.Dtos;
 using Zcrypta.Entities.Interfaces;
 using Zcrypta.Managers;
 using Zcrypta.Entities.BackgroundServices;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Zcrypta.Context;
 
 namespace Zcrypta.BackgroundServices
 {
@@ -25,31 +27,81 @@ namespace Zcrypta.BackgroundServices
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            using var scope = serviceScopeFactory.CreateScope();
+            using var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var tradingPairs = context.TradingPairs.ToList();
+
             while (!stoppingToken.IsCancellationRequested)
             {
-                await UpdateStockPrices();
+                await UpdateStockPrices(tradingPairs);
 
                 await Task.Delay(_options.UpdateInterval, stoppingToken);
             }
         }
 
-        private async Task UpdateStockPrices()
+        private async Task UpdateStockPrices(List<Models.TradingPair> tradingPairs)
         {
-            foreach (string ticker in activeTickerManager.GetAllTickers())
+            try
             {
-                var priceData = await restClient.SpotApi.ExchangeData.GetPriceAsync(ticker);
-                if (priceData == null)
+                var sendedTickerList = new List<string>();
+                foreach (var pair in tradingPairs)
                 {
-                    continue;
+                    var ticker = $"{pair.Base}{pair.Quote}";
+                    sendedTickerList.Add(ticker);
+                    await SendTradingPairPrice(hubContext, logger, restClient, tradingPairs, ticker);
                 }
 
-                var update = new CurrentPrice() { Price = priceData.Data.Price, Symbol = ticker };
+                var remainingTickerList = activeTickerManager.GetAllTickers().ToList().Except(sendedTickerList);
+                foreach (var ticker in remainingTickerList)
+                {
+                    await SendTradingPairPrice(hubContext, logger, restClient, tradingPairs, ticker);
+                }
+            }
+            catch (Exception e)
+            {
+                logger.LogError($"Error: {e}");
+            }
+        }
 
-                //await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
+        private static async Task SendTradingPairPrice(IHubContext<StocksFeedHub, IPriceUpdateClientContract> hubContext, ILogger<StocksFeedUpdater> logger, IBinanceRestClient restClient, List<Models.TradingPair> tradingPairs, string ticker)
+        {
+            try
+            {
+                var tradingPairDb = tradingPairs.Where(x => x.Base + x.Quote == ticker).FirstOrDefault();
+                var tradingPair = tradingPairDb == null ? new TradingPair { Base = ticker } : new TradingPair { Base = tradingPairDb.Base, Quote = tradingPairDb.Quote };
 
-                await hubContext.Clients.Group(ticker).ReceiveStockPriceUpdate(update);
+                var priceData = await restClient.SpotApi.ExchangeData.GetTradingDayTickerAsync(ticker);
+                if (priceData != null)
+                {
+                    var update = new TradingDayTicker()
+                    {
+                        LastPrice = priceData.Data.LastPrice,
+                        Symbol = ticker,
+                        PriceChange = priceData.Data.PriceChange,
+                        PriceChangePercent = priceData.Data.PriceChangePercent,
+                        WeightedAveragePrice = priceData.Data.WeightedAveragePrice,
+                        OpenPrice = priceData.Data.OpenPrice,
+                        HighPrice = priceData.Data.HighPrice,
+                        LowPrice = priceData.Data.LowPrice,
+                        Volume = priceData.Data.Volume,
+                        QuoteVolume = priceData.Data.QuoteVolume,
+                        OpenTime = priceData.Data.OpenTime,
+                        CloseTime = priceData.Data.CloseTime,
+                        FirstTradeId = priceData.Data.FirstTradeId,
+                        TotalTrades = priceData.Data.TotalTrades,
+                        TradingPair = tradingPair
+                    };
 
-                logger.LogInformation($"Updated {ticker} price to {priceData?.Data?.Price}");
+                    //await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
+
+                    await hubContext.Clients.All.ReceiveStockPriceUpdate(update);
+
+                    logger.LogInformation($"Updated {ticker} price to {priceData?.Data?.LastPrice}");
+                }
+            }
+            catch (Exception e)
+            {
+                logger.LogError($"Error: {e}");
             }
         }
     }
