@@ -10,9 +10,9 @@ namespace Zcrypta.Entities.Strategies.Options
     public class MacdStrategyOptions : StrategyOptions
     {
         public string Ticker { get; set; }
-        public int FastPeriod { get; set; }
-        public int SlowPeriod { get; set; }
-        public int SignalPeriod { get; set; }
+        public int LongPeriod { get; set; }
+        public int ShortPeriod { get; set; }
+        public int Period { get; set; }
         public KLineIntervals KLineInterval { get; set; }
     }
 }

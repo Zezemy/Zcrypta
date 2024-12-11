@@ -17,12 +17,14 @@ namespace Zcrypta.Controllers
     public class CommandServiceController : ControllerBase
     {
         private ApplicationDbContext _context { get; }
+        private IHttpContextAccessor _accessor { get; }
 
         private readonly ILogger<CommandServiceController> _logger;
-        public CommandServiceController(ApplicationDbContext context, ILogger<CommandServiceController> logger)
+        public CommandServiceController(ApplicationDbContext context, ILogger<CommandServiceController> logger, IHttpContextAccessor accessor)
         {
             _context = context;
             _logger = logger;
+            _accessor= accessor;
         }
 
 
@@ -33,7 +35,7 @@ namespace Zcrypta.Controllers
             {
                 _context.SignalStrategies.Add(new Models.SignalStrategy()
                 {
-                    CreatedBy = msg.CreatedBy,
+                    CreatedBy = _accessor.HttpContext.User.Claims.ToList()[0].Value,
                     Interval = msg.Interval == 0 ? (int)KLineIntervals.OneHour : msg.Interval,
                     IsPredefined = msg.IsPredefined,
                     CreateDate = DateTime.Now,

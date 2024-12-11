@@ -111,7 +111,7 @@ namespace Zcrypta.Context
             CreateDate = DateTime.Now,
             TradingPairId = 2,
             Properties = Newtonsoft.Json.JsonConvert.SerializeObject(new MacdStrategyOptions(){
-                KLineInterval = Entities.Enums.KLineIntervals.OneMinute, FastPeriod=12, SlowPeriod =26, SignalPeriod= 9, Ticker= "ETHUSDT"}),
+                KLineInterval = Entities.Enums.KLineIntervals.OneMinute, LongPeriod=12, ShortPeriod =26, Period= 9, Ticker= "ETHUSDT"}),
             IsPredefined = true,
         },
             new SignalStrategy()

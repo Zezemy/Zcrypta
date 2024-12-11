@@ -44,14 +44,14 @@ namespace Zcrypta.BackgroundServices
                     var props = Newtonsoft.Json.JsonConvert.DeserializeObject<MacdStrategyOptions>(strategy.Properties);
                     var ticker = props.Ticker;
                     var kLineInterval = (Binance.Net.Enums.KlineInterval)Enum.Parse(typeof(Binance.Net.Enums.KlineInterval), props.KLineInterval.ToString());
-                    var kLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, kLineInterval, limit: props.SlowPeriod);
-                    var closePricesLongList = kLines.Data.TakeLast(props.SlowPeriod).Select(x => x.ClosePrice);
+                    var kLines = await restClient.SpotApi.ExchangeData.GetKlinesAsync(ticker, kLineInterval, limit: props.ShortPeriod);
+                    var closePricesLongList = kLines.Data.TakeLast(props.ShortPeriod).Select(x => x.ClosePrice);
                     var latestCloseTime = kLines.Data.TakeLast(1).Select(x => x.CloseTime.ToLocalTime()).FirstOrDefault();
                     //DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(latestCloseTime);
                     //DateTime latestUtcCloseTime = dateTimeOffset.UtcDateTime;
 
                     Models.TradingSignal dbSignal = new Models.TradingSignal();
-                    dbSignal.SignalType = (int)MACDSignal(closePricesLongList.ToList(), props.FastPeriod, props.SlowPeriod, props.SignalPeriod);
+                    dbSignal.SignalType = (int)MACDSignal(closePricesLongList.ToList(), props.LongPeriod, props.ShortPeriod, props.Period);
                     dbSignal.Symbol = ticker;
                     dbSignal.DateTime = latestCloseTime;
                     dbSignal.StrategyType = (int)StrategyTypes.Macd;
@@ -70,14 +70,14 @@ namespace Zcrypta.BackgroundServices
         }
 
         // 3. MACD (Moving Average Convergence Divergence)
-        public static SignalTypes MACDSignal(List<decimal> prices, int fastPeriod, int slowPeriod, int signalPeriod)
+        public static SignalTypes MACDSignal(List<decimal> prices, int longPeriod, int shortPeriod, int period)
         {
-            if (prices.Count < slowPeriod) return SignalTypes.Hold;
+            if (prices.Count < shortPeriod) return SignalTypes.Hold;
 
-            var fastEMA = CalculateEMA(prices, fastPeriod);
-            var slowEMA = CalculateEMA(prices, slowPeriod);
+            var fastEMA = CalculateEMA(prices, longPeriod);
+            var slowEMA = CalculateEMA(prices, shortPeriod);
             var macd = fastEMA - slowEMA;
-            var signal = CalculateEMA(new List<decimal> { macd }, signalPeriod);
+            var signal = CalculateEMA(new List<decimal> { macd }, period);
 
             if (macd > signal) return SignalTypes.Buy;
             if (macd < signal) return SignalTypes.Sell;
