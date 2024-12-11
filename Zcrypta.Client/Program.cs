@@ -38,6 +38,11 @@ builder.Services.AddHttpClient(
     opt => opt.BaseAddress = new Uri(builder.Configuration["BackendUrl"] ?? "https://localhost:5001"))
     .AddHttpMessageHandler<CookieHandler>();
 
+builder.Services.AddHttpClient(
+    "BackendService",
+    opt => opt.BaseAddress = new Uri(builder.Configuration["BackendUrl"] ?? "https://localhost:5001"))
+    .AddHttpMessageHandler<CookieHandler>();
+
 builder.Services.AddSingleton<ChartService>();
 
 await builder.Build().RunAsync();

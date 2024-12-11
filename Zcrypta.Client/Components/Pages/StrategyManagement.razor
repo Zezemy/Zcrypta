@@ -1,0 +1,138 @@
+﻿@page "/strategyManagement"
+@rendermode InteractiveAuto
+@using Microsoft.AspNetCore.SignalR.Client
+@using Zcrypta.Entities
+@using Zcrypta.Entities.Dtos
+@using Zcrypta.Entities.Enums
+@using Zcrypta.Entities.Strategies.Options
+@inject IConfiguration Configuration
+@implements IAsyncDisposable
+@inject ISnackbar Snackbar
+@inject IHttpClientFactory ClientFactory
+
+<PageTitle>Strategy Management</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-2">
+    <MudSelect @bind-Value="selectedStrategyType" Label="Strategy Type" Placeholder="@(null)" AnchorOrigin="Origin.BottomCenter" Variant="Variant.Outlined">
+        @foreach (var strategyType in Enum.GetValues(typeof(StrategyTypes)).Cast<StrategyTypes>())
+        {
+            <MudSelectItem Value="strategyType">@strategyType</MudSelectItem>
+        }
+    </MudSelect>
+
+    <MudSelect @bind-Value="selectedTradingPair" Label="Trading Pair" Placeholder="@(null)" AnchorOrigin="Origin.BottomCenter" Variant="Variant.Outlined">
+        @foreach (var tradingPair in tradingPairs ?? new List<TradingPair>())
+        {
+            <MudSelectItem Value="tradingPair">@tradingPair.Base / @tradingPair.Quote </MudSelectItem>
+        }
+    </MudSelect>
+
+    <MudSelect @bind-Value="selectedInterval" Label="Interval" AnchorOrigin="Origin.BottomCenter" Variant="Variant.Outlined">
+        @foreach (var interval in Enum.GetValues(typeof(KLineIntervals)).Cast<KLineIntervals>())
+        {
+            <MudSelectItem Value="interval">@interval</MudSelectItem>
+        }
+    </MudSelect>
+
+    @if (selectedStrategyType == StrategyTypes.MaCrossover)
+    {
+        <MudNumericField @bind-Value="shortPeriod" Label="Short Period" Variant="Variant.Outlined" Min="1" />
+        <MudNumericField @bind-Value="longPeriod" Label="Long Period" Variant="Variant.Outlined" Min="1" />
+    }
+
+
+    <MudButton Class="mt-2"
+               OnClick="@(() => CreateStrategyAsync())"
+               Variant="Variant.Filled"
+               Color="Color.Primary">
+        @*
+        <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Inherit"/> *@
+        Start Strategy
+    </MudButton>
+</MudContainer>
+
+@code {
+    private bool success, errors;
+    private string[] errorList = [];
+    private StrategyTypes selectedStrategyType;
+    private TradingPair selectedTradingPair;
+    private List<TradingPair> tradingPairs;
+    private KLineIntervals selectedInterval;
+    private int shortPeriod;
+    private int longPeriod;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var client = ClientFactory.CreateClient("BackendService");
+
+        tradingPairs = await client.GetFromJsonAsync("/api/QueryService/GetTradingPairs", typeof(List<TradingPair>)) as List<TradingPair>;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+    }
+
+    public async Task DoSelectAsync()
+    {
+        string message;
+        success = errors = false;
+        errorList = [];
+    }
+
+    void SetErrorAndDisplayMessage(string message)
+    {
+        errors = true;
+        errorList = [message];
+        SnackbarMessage(message, Severity.Error);
+    }
+
+    void SnackbarMessage(string message, Severity severity)
+    {
+        Snackbar.Clear();
+        Snackbar.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
+        Snackbar.Add(message, severity);
+    }
+
+    private async Task CreateStrategyAsync()
+    {
+        var client = ClientFactory.CreateClient("BackendService");
+        var msg = new CreateStrategyRequestMessage()
+            {
+                CreatedBy = "Zeynep",
+                Interval = (int)selectedInterval,
+                IsPredefined = false,
+                StrategyType = (int)selectedStrategyType,
+                TradingPair = selectedTradingPair,
+                Properties = Newtonsoft.Json.JsonConvert.SerializeObject(new MaCrossoverStrategyOptions()
+                {
+                    LongPeriod = longPeriod == 0 ? 20 : longPeriod,
+                    ShortPeriod = shortPeriod == 0 ? 10 : shortPeriod,
+                    Ticker = $"{selectedTradingPair.Base}{selectedTradingPair.Quote}",
+                    KLineInterval = selectedInterval
+                })
+            };
+
+        var responseStr = await CallApiPostMethodAsync(client, msg, "CreateStrategy");
+        var response = Newtonsoft.Json.JsonConvert.DeserializeObject<CreateStrategyResponseMessage>(responseStr);
+        SnackbarMessage(response.ResponseDescription, Severity.Success);
+    }
+
+    private async Task<string> CallApiPostMethodAsync(HttpClient client, CreateStrategyRequestMessage msg, string action)
+    {
+        using (HttpResponseMessage response = await client.PostAsJsonAsync($"/api/CommandService/{action}", msg))
+        {
+            using (HttpContent content = response.Content)
+            {
+                return await ProcessResponse(response, content);
+            }
+        }
+    }
+
+    private async Task<string> ProcessResponse(HttpResponseMessage response, HttpContent content)
+    {
+        string resultString = await content.ReadAsStringAsync();
+        string reasonPhrase = response.ReasonPhrase;
+
+        return resultString;
+    }
+}
