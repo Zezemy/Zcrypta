@@ -99,13 +99,13 @@ else
     {
         hubConnection.On<TradingSignal>("ReceiveSignalUpdate", (signal) =>
         {
-            if (!signals.Any(x => x.Symbol == signal.Symbol && x.StrategyType == signal.StrategyType))
+            if (!signals.Any(x => x.Symbol == signal.Symbol && x.StrategyType == signal.StrategyType && x.Interval == signal.Interval))
             {
                 signals.Add(signal);
             }
             else
             {
-                var signalInList = signals.Where(x => x.Symbol == signal.Symbol && x.StrategyType == signal.StrategyType).First();
+                var signalInList = signals.Where(x => x.Symbol == signal.Symbol && x.StrategyType == signal.StrategyType && x.Interval == signal.Interval).First();
                 var index = signals.IndexOf(signalInList);
                 signals[index] = signal;
             }

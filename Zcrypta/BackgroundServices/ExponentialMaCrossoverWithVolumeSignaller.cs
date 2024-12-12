@@ -56,7 +56,7 @@ namespace Zcrypta.BackgroundServices
                     dbSignal.Symbol = ticker;
                     dbSignal.DateTime = latestCloseTime;
                     dbSignal.StrategyType = (int)StrategyTypes.ExponentialMaCrossoverWithVolume;
-                    dbSignal.Interval = (int)KLineIntervals.OneMinute;
+                    dbSignal.Interval = strategy.Interval;
                     context.TradingSignals.Add(dbSignal);
                     await context.SaveChangesAsync();
 
