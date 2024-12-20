@@ -1,0 +1,282 @@
+﻿@page "/strategyManagement"
+@rendermode InteractiveAuto
+@using Microsoft.AspNetCore.SignalR.Client
+@using Zcrypta.Entities
+@using Zcrypta.Entities.Dtos
+@using Zcrypta.Entities.Enums
+@using Zcrypta.Entities.Strategies.Options
+@inject IConfiguration Configuration
+@implements IAsyncDisposable
+@inject ISnackbar Snackbar
+@inject IHttpClientFactory ClientFactory
+
+<PageTitle>Strategy Management</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-2">
+    <MudSelect @bind-Value="selectedStrategyType" Label="Strategy Type" Placeholder="@(null)" AnchorOrigin="Origin.BottomCenter" Variant="Variant.Outlined">
+        @foreach (var strategyType in Enum.GetValues(typeof(StrategyTypes)).Cast<StrategyTypes>())
+        {
+            <MudSelectItem Value="strategyType">@strategyType</MudSelectItem>
+        }
+    </MudSelect>
+
+    <MudSelect @bind-Value="selectedTradingPair" Label="Trading Pair" Placeholder="@(null)" AnchorOrigin="Origin.BottomCenter" Variant="Variant.Outlined">
+        @foreach (var tradingPair in tradingPairs ?? new List<TradingPair>())
+        {
+            <MudSelectItem Value="tradingPair">@tradingPair.Base / @tradingPair.Quote </MudSelectItem>
+        }
+    </MudSelect>
+
+    <MudSelect @bind-Value="selectedInterval" Label="Interval" AnchorOrigin="Origin.BottomCenter" Variant="Variant.Outlined">
+        @foreach (var interval in Enum.GetValues(typeof(KLineIntervals)).Cast<KLineIntervals>())
+        {
+            <MudSelectItem Value="interval">@interval</MudSelectItem>
+        }
+    </MudSelect>
+
+    @if (IsShortLongPeriodInputsVisible())
+    {
+        <MudNumericField @bind-Value="shortPeriod" Label="Short Period" Variant="Variant.Outlined" Min="1" />
+
+        @if (IsMediumPeriodInputsVisible())
+        {
+            <MudNumericField @bind-Value="mediumPeriod" Label="Medium Period" Variant="Variant.Outlined" Min="1" />
+        }
+
+        <MudNumericField @bind-Value="longPeriod" Label="Long Period" Variant="Variant.Outlined" Min="1" />
+    }
+
+    @if (IsPeriodInputsVisible())
+    {
+        <MudNumericField @bind-Value="period" Label="Period" Variant="Variant.Outlined" Min="1" />
+    }
+
+    @if (IsOverboughtOversoldInputsVisible())
+    {
+        <MudNumericField @bind-Value="overbought" Label="Overbought" Variant="Variant.Outlined" Min="1" />
+        <MudNumericField @bind-Value="oversold" Label="Oversold" Variant="Variant.Outlined" Min="1" />
+    }
+
+    @if (IsStandardDeviationInputsVisible())
+    {
+        <MudNumericField @bind-Value="standardDeviations" Label="Standard Deviations" Variant="Variant.Outlined" Min="1" />
+    }
+
+    <MudButton Class="mt-2"
+               OnClick="@(() => CreateStrategyAsync())"
+               Variant="Variant.Filled"
+               Color="Color.Primary">
+        @*
+        <MudIconButton Icon="@Icons.Material.Filled.Add" Color="Color.Inherit"/> *@
+        Start Strategy
+    </MudButton>
+</MudContainer>
+
+@code {
+    private bool success, errors;
+    private string[] errorList = [];
+    private StrategyTypes selectedStrategyType;
+    private TradingPair selectedTradingPair;
+    private List<TradingPair> tradingPairs;
+    private KLineIntervals selectedInterval;
+    private int shortPeriod;
+    private int longPeriod;
+    private int mediumPeriod;
+    private int period;
+    private int overbought;
+    private int oversold;
+    private int standardDeviations;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var client = ClientFactory.CreateClient("BackendService");
+
+        tradingPairs = await client.GetFromJsonAsync("/api/QueryService/GetTradingPairs", typeof(List<TradingPair>)) as List<TradingPair>;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+    }
+
+    public async Task DoSelectAsync()
+    {
+        string message;
+        success = errors = false;
+        errorList = [];
+    }
+
+    void SetErrorAndDisplayMessage(string message)
+    {
+        errors = true;
+        errorList = [message];
+        SnackbarMessage(message, Severity.Error);
+    }
+
+    void SnackbarMessage(string message, Severity severity)
+    {
+        Snackbar.Clear();
+        Snackbar.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
+        Snackbar.Add(message, severity);
+    }
+
+    private async Task CreateStrategyAsync()
+    {
+        var client = ClientFactory.CreateClient("BackendService");
+        var msg = new CreateStrategyRequestMessage()
+            {
+                CreatedBy = "Zeynep",
+                Interval = (int)selectedInterval,
+                IsPredefined = false,
+                StrategyType = (int)selectedStrategyType,
+                TradingPair = selectedTradingPair,
+                Properties = Newtonsoft.Json.JsonConvert.SerializeObject(GetStrategyProperties(selectedStrategyType))
+            };
+
+        var responseStr = await CallApiPostMethodAsync(client, msg, "CreateStrategy");
+        var response = Newtonsoft.Json.JsonConvert.DeserializeObject<CreateStrategyResponseMessage>(responseStr);
+        SnackbarMessage(response.ResponseDescription, Severity.Success);
+    }
+
+    private async Task<string> CallApiPostMethodAsync(HttpClient client, CreateStrategyRequestMessage msg, string action)
+    {
+        using (HttpResponseMessage response = await client.PostAsJsonAsync($"/api/CommandService/{action}", msg))
+        {
+            using (HttpContent content = response.Content)
+            {
+                return await ProcessResponse(response, content);
+            }
+        }
+    }
+
+    private async Task<string> ProcessResponse(HttpResponseMessage response, HttpContent content)
+    {
+        string resultString = await content.ReadAsStringAsync();
+        string reasonPhrase = response.ReasonPhrase;
+
+        return resultString;
+    }
+
+    private bool IsShortLongPeriodInputsVisible()
+    {
+        return selectedStrategyType == StrategyTypes.MaCrossover ||
+        selectedStrategyType == StrategyTypes.Macd ||
+        selectedStrategyType == StrategyTypes.TripleMaCrossover ||
+        selectedStrategyType == StrategyTypes.ExponentialMaCrossoverWithVolume;
+    }
+
+    private bool IsPeriodInputsVisible()
+    {
+        return selectedStrategyType == StrategyTypes.Momentum ||
+        selectedStrategyType == StrategyTypes.VolumePriceTrend ||
+        selectedStrategyType == StrategyTypes.PriceChannel ||
+        selectedStrategyType == StrategyTypes.StochasticOscillator ||
+        selectedStrategyType == StrategyTypes.BollingerBands ||
+        selectedStrategyType == StrategyTypes.Rsi ||
+        selectedStrategyType == StrategyTypes.Macd;
+    }
+
+    private bool IsOverboughtOversoldInputsVisible()
+    {
+        return selectedStrategyType == StrategyTypes.Rsi ||
+        selectedStrategyType == StrategyTypes.StochasticOscillator;
+    }
+
+    private bool IsStandardDeviationInputsVisible()
+    {
+        return selectedStrategyType == StrategyTypes.BollingerBands;
+    }
+
+    private bool IsMediumPeriodInputsVisible()
+    {
+        return selectedStrategyType == StrategyTypes.TripleMaCrossover;
+    }
+
+    private object GetStrategyProperties(StrategyTypes strategyType)
+    {
+        switch (strategyType)
+        {
+            case StrategyTypes.MaCrossover:
+            default:
+                return new MaCrossoverStrategyOptions()
+                    {
+                        LongPeriod = longPeriod == 0 ? 20 : longPeriod,
+                        ShortPeriod = shortPeriod == 0 ? 10 : shortPeriod,
+                        Ticker = $"{selectedTradingPair.Base}{selectedTradingPair.Quote}",
+                        KLineInterval = selectedInterval
+                    };
+            case StrategyTypes.Macd:
+                return new MacdStrategyOptions()
+                    {
+                        LongPeriod = longPeriod == 0 ? 12 : longPeriod,
+                        ShortPeriod = shortPeriod == 0 ? 26 : shortPeriod,
+                        Period = period == 0 ? 9 : period,
+                        Ticker = $"{selectedTradingPair.Base}{selectedTradingPair.Quote}",
+                        KLineInterval = selectedInterval
+                    };
+            case StrategyTypes.Rsi:
+                return new RsiStrategyOptions()
+                    {
+                        Period = period == 0 ? 14 : period,
+                        Overbought = overbought == 0 ? 70 : overbought,
+                        Oversold = oversold == 0 ? 30 : oversold,
+                        Ticker = $"{selectedTradingPair.Base}{selectedTradingPair.Quote}",
+                        KLineInterval = selectedInterval
+                    };
+            case StrategyTypes.BollingerBands:
+                return new BollingerBandsStrategyOptions()
+                    {
+                        Period = period == 0 ? 20 : period,
+                        StandardDeviations = standardDeviations == 0 ? 2 : standardDeviations,
+                        Ticker = $"{selectedTradingPair.Base}{selectedTradingPair.Quote}",
+                        KLineInterval = selectedInterval
+                    };
+            case StrategyTypes.StochasticOscillator:
+                return new StochasticOscillatorStrategyOptions()
+                    {
+                        Period = period == 0 ? 20 : period,
+                        Overbought = overbought == 0 ? 80 : overbought,
+                        Oversold = oversold == 0 ? 20 : oversold,
+                        Ticker = $"{selectedTradingPair.Base}{selectedTradingPair.Quote}",
+                        KLineInterval = selectedInterval
+                    };
+            case StrategyTypes.TripleMaCrossover:
+                return new TripleMaCrossoverStrategyOptions()
+                    {
+                        ShortPeriod = shortPeriod == 0 ? 5 : shortPeriod,
+                        MediumPeriod = mediumPeriod == 0 ? 10 : mediumPeriod,
+                        LongPeriod = longPeriod == 0 ? 20 : longPeriod,
+                        Ticker = $"{selectedTradingPair.Base}{selectedTradingPair.Quote}",
+                        KLineInterval = selectedInterval
+                    };
+            case StrategyTypes.PriceChannel:
+                return new PriceChannelStrategyOptions()
+                    {
+                        Period = period == 0 ? 20 : period,
+                        Ticker = $"{selectedTradingPair.Base}{selectedTradingPair.Quote}",
+                        KLineInterval = selectedInterval
+                    };
+            case StrategyTypes.VolumePriceTrend:
+                return new VolumePriceTrendStrategyOptions()
+                    {
+                        Period = period == 0 ? 14 : period,
+                        Ticker = $"{selectedTradingPair.Base}{selectedTradingPair.Quote}",
+                        KLineInterval = selectedInterval
+                    };
+            case StrategyTypes.Momentum:
+                return new MomentumStrategyOptions()
+                    {
+                        Period = period == 0 ? 10 : period,
+                        Ticker = $"{selectedTradingPair.Base}{selectedTradingPair.Quote}",
+                        KLineInterval = selectedInterval
+                    };
+            case StrategyTypes.ExponentialMaCrossoverWithVolume:
+                return new ExponentialMaCrossoverWithVolumeStrategyOptions()
+                    {
+                        ShortPeriod = shortPeriod == 0 ? 10 : shortPeriod,
+                        LongPeriod = longPeriod == 0 ? 20 : longPeriod,
+                        Ticker = $"{selectedTradingPair.Base}{selectedTradingPair.Quote}",
+                        KLineInterval = selectedInterval
+                    };
+        }
+    }
+}

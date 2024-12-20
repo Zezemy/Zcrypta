@@ -1,4 +1,4 @@
-﻿@page "/pastSignals"
+﻿@page "/listSignals"
 @rendermode InteractiveAuto
 @using Microsoft.AspNetCore.SignalR.Client
 @using Zcrypta.Entities
@@ -131,9 +131,9 @@
             var msg = new ListSignalRequest()
                 {
                     Symbol = selectedTradingPair == null ? string.Empty : selectedTradingPair.Base.Trim() + selectedTradingPair.Quote.Trim(),
-                    Interval = selectedInterval== null? -1:(int)selectedInterval,
+                    Interval = selectedInterval == null ? -1 : (int)selectedInterval,
                     StrategyType = selectedStrategyType == null ? -1 : (int)selectedStrategyType,
-                    SignalType=-1,
+                    SignalType = -1,
                     QueryStartDateTime = selectedQueryStartDate,
                     QueryEndDateTime = selectedQueryEndDate
                 };

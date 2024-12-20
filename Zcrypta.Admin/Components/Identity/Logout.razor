@@ -1,0 +1,30 @@
+@page "/logout"
+@using Zcrypta.Admin
+@inject NavigationManager Navigation
+@inject IAccountManagement Acct
+
+<PageTitle>Logout</PageTitle>
+
+<AuthorizeView @ref="authView">
+    <Authorized>
+        <div class="alert alert-info">Logging you out...</div>
+    </Authorized>
+    <NotAuthorized>
+        <div class="alert alert-success">You're logged out. <a href="/login">Log in.</a></div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+
+    private AuthorizeView? authView;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (await Acct.CheckAuthenticatedAsync())
+        {
+            await Acct.LogoutAsync();
+
+            Navigation.NavigateTo("/");
+        }
+    }
+}
