@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Zcrypta.Entities.Models
+﻿namespace Zcrypta.Entities.Models
 {
     public class UserModel
     {
@@ -12,8 +6,9 @@ namespace Zcrypta.Entities.Models
         {
             UserRoles = new List<UserRoleModel>();
         }
-        public int ID { get; set; }
+        public string Id { get; set; }
         public string Username { get; set; }
+        public string Email { get; set; }
         public string Password { get; set; }
         public virtual ICollection<UserRoleModel> UserRoles { get; set; }
     }

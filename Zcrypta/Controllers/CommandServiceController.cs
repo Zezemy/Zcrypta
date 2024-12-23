@@ -8,6 +8,7 @@ using Zcrypta.Entities.Dtos;
 using Zcrypta.Context;
 using Zcrypta.Entities;
 using Zcrypta.Entities.Enums;
+using Microsoft.AspNetCore.Identity;
 
 namespace Zcrypta.Controllers
 {
@@ -54,6 +55,73 @@ namespace Zcrypta.Controllers
             {
                 _logger.LogError(ex.ToString());
                 return new CreateStrategyResponseMessage
+                {
+                    ResponseCode = "1",
+                    ResponseDescription = "Transaction is failed."
+                };
+            }
+        }
+
+        [HttpPost(Name = "UpdateUser")]
+        public async Task<object> UpdateUserAsync(UserUpdateRequest req)
+        {
+            try
+            {
+                var user = _context.Users.Where(x => x.Id == req.UserModel.Id).FirstOrDefault();
+
+                if (!string.IsNullOrWhiteSpace(req.UserModel.Username))
+                {
+                    user.UserName = req.UserModel.Username;
+                }
+                
+                if (!string.IsNullOrWhiteSpace(req.UserModel.Email))
+                {
+                    user.Email = req.UserModel.Email;
+                }
+
+                if (!string.IsNullOrWhiteSpace(req.UserModel.Password))
+                {
+                    var passwordHasher = new PasswordHasher<User>();
+                    var hashed = passwordHasher.HashPassword(user, $"{req.UserModel.Password}");
+                    user.PasswordHash = hashed;
+                }
+
+                _context.SaveChanges();
+                return new BaseResponse
+                {
+                    ResponseCode = "0",
+                    ResponseDescription = "Transaction is successful."
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.ToString());
+                return new BaseResponse
+                {
+                    ResponseCode = "1",
+                    ResponseDescription = "Transaction is failed."
+                };
+            }
+        }
+
+        [HttpDelete(Name = "DeleteUserById")]
+        public async Task<object> DeleteUserByIdAsync(string id)
+        {
+            try
+            {
+                var user = _context.Users.Where(x => x.Id == id).FirstOrDefault();
+                _context.Users.Remove(user);
+                _context.SaveChanges();
+                return new BaseResponse
+                {
+                    ResponseCode = "0",
+                    ResponseDescription = "Transaction is successful."
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.ToString());
+                return new BaseResponse
                 {
                     ResponseCode = "1",
                     ResponseDescription = "Transaction is failed."

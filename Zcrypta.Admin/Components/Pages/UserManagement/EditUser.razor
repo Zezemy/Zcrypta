@@ -1,0 +1,94 @@
+﻿@page "/EditUser/{Id}"
+@using Zcrypta.Entities
+@using Zcrypta.Entities.Models
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IHttpClientFactory ClientFactory
+
+<MudCard Class="ml-10 mr-10" style="margin-top:30px" Elevation="25">
+    <MudText Align="Align.Left" Typo="Typo.h4" Style="margin-left:10px;margin-top:10px;margin-top:10px"><b>Edit User Data</b></MudText>
+
+    <MudDivider style="background-color:black" DividerType="DividerType.Middle" Class="my-6" />
+    <MudCard Elevation="0" Style="margin-left:20px">
+        <MudText Color="Color.Dark"><b>User Name</b></MudText>
+        <MudTextField Margin="Margin.Dense" Style="height:25px;width:50%" T="string" Placeholder="User Name" @bind-Value="user.Username" />
+        <MudText Color="Color.Dark"><b>Email</b></MudText>
+        <MudTextField Margin="Margin.Dense" Style="height:25px;width:50%" T="string" Placeholder="Email" @bind-Value="user.Email" />
+        <MudText Style="padding-bottom:20px"></MudText>
+        <MudText Color="Color.Dark"><b>Password</b></MudText>
+        <MudTextField Margin="Margin.Dense" Style="height:25px;width:50%" Placeholder="Password" @bind-Value="user.Password" />
+        <MudText Style="padding-bottom:20px"></MudText>
+
+        <MudButton @onclick="@Save" Variant="Variant.Filled" Color="Color.Primary">Update</MudButton>
+        <MudButton @onclick="@Cancel" Variant="Variant.Filled" Color="Color.Error">Cancel</MudButton>
+        <MudText Style="padding-bottom:20px"></MudText>
+    </MudCard>
+</MudCard>
+
+@code {
+    [Parameter]
+    public string Id { get; set; }
+
+    private UserModel user = new UserModel();
+    private List<UserModel> userList = new List<UserModel>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var client = ClientFactory.CreateClient("BackendService");
+
+        user = await GetUser(Id);
+    }
+
+    private async Task<UserModel> GetUser(string id)
+    {
+        var client = ClientFactory.CreateClient("BackendService");
+
+        return await client.GetFromJsonAsync($"/api/QueryService/GetUserById?id={Id}", typeof(UserModel)) as UserModel;
+    }
+
+    private async void Save()
+    {
+        var client = ClientFactory.CreateClient("BackendService");
+        var msg = new UserUpdateRequest()
+            {
+                UserModel = user
+            };
+
+        var responseStr = await CallApiPostMethodAsync(client, msg, "UpdateUser");
+        var response = Newtonsoft.Json.JsonConvert.DeserializeObject<UserUpdateResponseMessage>(responseStr);
+        SnackbarMessage(response.ResponseDescription, Severity.Success);
+
+        NavigationManager.NavigateTo("/listUsers");
+    }
+
+    private async Task<string> CallApiPostMethodAsync(HttpClient client, UserUpdateRequest msg, string action)
+    {
+        using (HttpResponseMessage response = await client.PostAsJsonAsync($"/api/CommandService/{action}", msg))
+        {
+            using (HttpContent content = response.Content)
+            {
+                return await ProcessResponse(response, content);
+            }
+        }
+    }
+
+    private async Task<string> ProcessResponse(HttpResponseMessage response, HttpContent content)
+    {
+        string resultString = await content.ReadAsStringAsync();
+        string reasonPhrase = response.ReasonPhrase;
+
+        return resultString;
+    }
+
+    void Cancel()
+    {
+        NavigationManager.NavigateTo("/listUsers");
+    }
+
+    void SnackbarMessage(string message, Severity severity)
+    {
+        Snackbar.Clear();
+        Snackbar.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
+        Snackbar.Add(message, severity);
+    }
+}

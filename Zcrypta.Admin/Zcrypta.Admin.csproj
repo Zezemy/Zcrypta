@@ -30,6 +30,9 @@
 		<Content Update="Components\Pages\ListSignals.razor">
 		  <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
 		</Content>
+		<Content Update="Components\Pages\UserManagement\ListUsers.razor">
+		  <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+		</Content>
 		<Content Update="Components\_Imports.razor">
 			<ExcludeFromSingleFile>true</ExcludeFromSingleFile>
 		</Content>

@@ -27,6 +27,31 @@ namespace Zcrypta.Controllers
             _logger = logger;
         }
 
+        [HttpGet(Name = "GetUserById")]
+        public async Task<object> GetUserByIdAsync(string id)
+        {
+            try
+            {
+                return _context.Users.Where(x => x.Id == id).FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
+
+        [HttpGet(Name = "GetUsers")]
+        public async Task<object> GetUsersAsync()
+        {
+            try
+            {
+                return _context.Users;
+            }
+            catch (Exception ex)
+            {
+                throw ex;
+            }
+        }
 
         [HttpGet(Name = "GetTradingPairs")]
         public async Task<object> GetTradingPairsAsync()

@@ -1,0 +1,81 @@
+﻿@page "/listUsers"
+@using Microsoft.AspNetCore.SignalR.Client
+@using Zcrypta.Entities
+@using Zcrypta.Entities.Dtos
+@using Zcrypta.Entities.Enums
+@using Zcrypta.Entities.Models
+@inject IConfiguration Configuration
+@inject ISnackbar Snackbar
+@inject IHttpClientFactory ClientFactory
+
+<PageTitle>User Management</PageTitle>
+
+<MudCard Class="ml-10 mr-10" style="margin-top:30px" Elevation="25">
+    <MudText Align="Align.Left" Typo="Typo.h4" Style="margin-left:10px;margin-top:10px;margin-top:10px"><b>User Management</b></MudText>
+
+    <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Text" Color="Color.Primary" Href="/AddUser">Add a new user</MudButton>
+
+    <MudSimpleTable>
+        <thead>
+            <MudTr>
+                <MudTh>User Name</MudTh>
+                <MudTh>Email</MudTh>
+                <MudTh></MudTh>
+            </MudTr>
+        </thead>
+        <tbody>
+            @foreach (var user in userList)
+            {
+                <tr>
+                    <MudTd DataLabel="User Name" Style="width:400px;height:50px;">@user.Username</MudTd>
+                    <MudTd DataLabel="Email" Style="width:400px;height:50px;">@user.Email</MudTd>
+                    <MudTd>
+                        <MudIconButton Href="@($"EditUser/{user.Id}")" Color="Color.Warning" Icon="@Icons.Material.Filled.Edit" Size="Size.Small" />
+                        <MudIconButton @onclick="@(()=> Delete(user.Id))" Color="Color.Error" Icon="@Icons.Material.Filled.Delete" Size="Size.Small" />
+                    </MudTd>
+                </tr>
+            }
+        </tbody>
+    </MudSimpleTable>
+</MudCard>
+
+@code {
+    private UserModel user = new UserModel();
+    private List<UserModel> userList = new List<UserModel>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        userList = await GetAllUserList();
+    }
+
+    private async Task<List<UserModel>> GetAllUserList()
+    {
+        var client = ClientFactory.CreateClient("BackendService");
+
+        return await client.GetFromJsonAsync("/api/QueryService/GetUsers", typeof(List<UserModel>)) as List<UserModel>;
+    }
+
+    private async void Delete(string id)
+    {
+        var client = ClientFactory.CreateClient("BackendService");
+
+        var result = await client.DeleteFromJsonAsync($"/api/CommandService/DeleteUserById?id={id}", typeof(BaseResponse)) as BaseResponse;
+        if (result.ResponseCode == "0")
+        {
+            SnackbarMessage($"{ result.ResponseDescription}", Severity.Success);
+            userList = await GetAllUserList();
+            StateHasChanged();
+        }
+        else
+        {
+            SnackbarMessage($"{result.ResponseDescription}", Severity.Error);
+        }
+    }
+
+    void SnackbarMessage(string message, Severity severity)
+    {
+        Snackbar.Clear();
+        Snackbar.Configuration.PositionClass = Defaults.Classes.Position.TopCenter;
+        Snackbar.Add(message, severity);
+    }
+}
