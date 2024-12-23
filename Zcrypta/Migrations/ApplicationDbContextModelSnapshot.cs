@@ -249,6 +249,9 @@ namespace Zcrypta.Migrations
                     b.Property<int>("StrategyType")
                         .HasColumnType("int");
 
+                    b.Property<long>("TradingPairId")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTime?>("UpdateDate")
                         .HasColumnType("datetime");
 
@@ -259,6 +262,8 @@ namespace Zcrypta.Migrations
 
                     b.HasKey("Id")
                         .HasName("PK__SignalSt__3214EC0711B64996");
+
+                    b.HasIndex("TradingPairId");
 
                     b.ToTable("SignalStrategies");
                 });
@@ -289,6 +294,41 @@ namespace Zcrypta.Migrations
                     b.ToTable("TradingPairs");
                 });
 
+            modelBuilder.Entity("Zcrypta.Models.TradingSignal", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("DateTime")
+                        .HasColumnType("datetime");
+
+                    b.Property<int>("Interval")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SignalType")
+                        .HasColumnType("int");
+
+                    b.Property<long>("StrategyId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("StrategyType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Symbol")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .IsUnicode(false)
+                        .HasColumnType("varchar(40)");
+
+                    b.HasKey("Id")
+                        .HasName("PK__TradingS__3214EC07AFAF5B7E");
+
+                    b.ToTable("TradingSignals");
+                });
+
             modelBuilder.Entity("Zcrypta.Models.UserSignalStrategy", b =>
                 {
                     b.Property<long>("Id")
@@ -298,9 +338,6 @@ namespace Zcrypta.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
                     b.Property<long>("StrategyId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("TradingPairId")
                         .HasColumnType("bigint");
 
                     b.Property<string>("UserId")
@@ -313,9 +350,31 @@ namespace Zcrypta.Migrations
 
                     b.HasIndex("StrategyId");
 
-                    b.HasIndex("TradingPairId");
-
                     b.ToTable("UserSignalStrategies");
+                });
+
+            modelBuilder.Entity("Zcrypta.Models.UserTradingSignal", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("TradingSignalId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id")
+                        .HasName("PK__UserTrad__3214EC0707528D36");
+
+                    b.HasIndex("TradingSignalId");
+
+                    b.ToTable("UserTradingSignals");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -369,6 +428,17 @@ namespace Zcrypta.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Zcrypta.Models.SignalStrategy", b =>
+                {
+                    b.HasOne("Zcrypta.Models.TradingPair", "TradingPair")
+                        .WithMany("SignalStrategies")
+                        .HasForeignKey("TradingPairId")
+                        .IsRequired()
+                        .HasConstraintName("FK_SignalStrategies_TradingPairs");
+
+                    b.Navigation("TradingPair");
+                });
+
             modelBuilder.Entity("Zcrypta.Models.UserSignalStrategy", b =>
                 {
                     b.HasOne("Zcrypta.Models.SignalStrategy", "Strategy")
@@ -377,15 +447,19 @@ namespace Zcrypta.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_UserSignalStrategies_SignalStrategies");
 
-                    b.HasOne("Zcrypta.Models.TradingPair", "TradingPair")
-                        .WithMany("UserSignalStrategies")
-                        .HasForeignKey("TradingPairId")
-                        .IsRequired()
-                        .HasConstraintName("FK_UserSignalStrategies_TradingPairs");
-
                     b.Navigation("Strategy");
+                });
 
-                    b.Navigation("TradingPair");
+            modelBuilder.Entity("Zcrypta.Models.UserTradingSignal", b =>
+                {
+                    b.HasOne("Zcrypta.Models.TradingSignal", "TradingSignal")
+                        .WithMany("UserTradingSignals")
+                        .HasForeignKey("TradingSignalId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_UserTradingSignals_TradingSignals");
+
+                    b.Navigation("TradingSignal");
                 });
 
             modelBuilder.Entity("Zcrypta.Models.SignalStrategy", b =>
@@ -395,7 +469,12 @@ namespace Zcrypta.Migrations
 
             modelBuilder.Entity("Zcrypta.Models.TradingPair", b =>
                 {
-                    b.Navigation("UserSignalStrategies");
+                    b.Navigation("SignalStrategies");
+                });
+
+            modelBuilder.Entity("Zcrypta.Models.TradingSignal", b =>
+                {
+                    b.Navigation("UserTradingSignals");
                 });
 #pragma warning restore 612, 618
         }
